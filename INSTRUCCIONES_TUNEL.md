@@ -15,14 +15,14 @@ Este archivo documenta la configuración y los comandos necesarios para exponer 
 
 Para levantar los túneles públicos de forma correcta en Windows sin fallos `502 Bad Gateway`, se debe usar la IP explícita `127.0.0.1` en lugar de `localhost`. Abre dos terminales independientes y ejecuta:
 
-### 1. Túnel del Backend (Puerto 8001):
+### 1. Túnel del Backend (Puerto 8005):
 ```bash
-ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:8001 serveo.net
+ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:8005 serveo.net
 ```
 
-### 2. Túnel del Frontend (Puerto 5173):
+### 2. Túnel del Frontend (Puerto 3005):
 ```bash
-ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:5173 serveo.net
+ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:3005 serveo.net
 ```
 
 ---
