@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || `https://cryptoanalyzer-backend.serveousercontent.com/api`;
+const API_URL = import.meta.env.VITE_API_URL || `https://cryptoanalyzer-backend.loca.lt/api`;
 
 const BYPASS_HEADERS = {
   'serveo-skip-browser-warning': 'true',

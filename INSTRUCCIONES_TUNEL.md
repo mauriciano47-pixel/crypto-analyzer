@@ -6,8 +6,8 @@ Este archivo documenta la configuración y los comandos necesarios para exponer 
 
 ## 🌐 URLs Públicas Actuales (Serveo)
 
-* **Frontend**: `https://cryptoanalyzer-frontend.serveousercontent.com`
-* **Backend (API)**: `https://cryptoanalyzer-backend.serveousercontent.com`
+* **Frontend**: `https://cryptoanalyzer-frontend.loca.lt`
+* **Backend (API)**: `https://cryptoanalyzer-backend.loca.lt`
 
 ---
 
@@ -17,12 +17,12 @@ Para levantar los túneles públicos de forma correcta en Windows sin fallos `50
 
 ### 1. Túnel del Backend (Puerto 8005):
 ```bash
-ssh -o StrictHostKeyChecking=no -R cryptoanalyzer-backend:80:127.0.0.1:8005 serveo.net
+npx localtunnel --port 8005 --subdomain cryptoanalyzer-backend
 ```
 
 ### 2. Túnel del Frontend (Puerto 3005):
 ```bash
-ssh -o StrictHostKeyChecking=no -R cryptoanalyzer-frontend:80:127.0.0.1:3005 serveo.net
+npx localtunnel --port 3005 --subdomain cryptoanalyzer-frontend
 ```
 
 ---
