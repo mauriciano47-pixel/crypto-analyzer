@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: crypto-analyzer-backend
+    env: python
+    rootDir: crypto-pattern-analyzer
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn core.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: WEB_CONCURRENCY
+        value: 4
