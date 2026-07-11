@@ -6,8 +6,8 @@ Este archivo documenta la configuración y los comandos necesarios para exponer 
 
 ## 🌐 URLs Públicas Actuales (Serveo)
 
-* **Frontend**: `https://077dce2e836b2a2f-195-86-38-45.serveousercontent.com`
-* **Backend (API)**: `https://f1e59661ddb4a69d-195-86-38-45.serveousercontent.com`
+* **Frontend**: `https://cryptoanalyzer-frontend.serveousercontent.com`
+* **Backend (API)**: `https://cryptoanalyzer-backend.serveousercontent.com`
 
 ---
 
@@ -17,12 +17,12 @@ Para levantar los túneles públicos de forma correcta en Windows sin fallos `50
 
 ### 1. Túnel del Backend (Puerto 8005):
 ```bash
-ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:8005 serveo.net
+ssh -o StrictHostKeyChecking=no -R cryptoanalyzer-backend:80:127.0.0.1:8005 serveo.net
 ```
 
 ### 2. Túnel del Frontend (Puerto 3005):
 ```bash
-ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:3005 serveo.net
+ssh -o StrictHostKeyChecking=no -R cryptoanalyzer-frontend:80:127.0.0.1:3005 serveo.net
 ```
 
 ---
