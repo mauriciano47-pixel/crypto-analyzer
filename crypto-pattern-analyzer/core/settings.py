@@ -18,7 +18,7 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 
 # --- Aplicaciones instaladas ---
@@ -129,8 +129,17 @@ REST_FRAMEWORK = {
 }
 
 
-# --- CORS (para conectar luego con React Native) ---
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # solo en desarrollo; restringir en producción
+# --- CORS ---
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.environ.get(
+            'CORS_ALLOWED_ORIGINS',
+            'https://crypto-analyzer-six.vercel.app'
+        ).split(',')
+    ]
 
 from corsheaders.defaults import default_headers
 CORS_ALLOW_HEADERS = list(default_headers) + [
