@@ -137,7 +137,7 @@ else:
         origin.strip()
         for origin in os.environ.get(
             'CORS_ALLOWED_ORIGINS',
-            'https://crypto-analyzer-six.vercel.app'
+            'https://crypto-frontend-weld.vercel.app'
         ).split(',')
     ]
 
