@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || `https://f1e59661ddb4a69d-195-86-38-45.serveousercontent.com/api`;
+const API_URL = import.meta.env.VITE_API_URL || `https://04cc1defd1a268b4-187-103-21-74.serveousercontent.com/api`;
 
 const BYPASS_HEADERS = {
   'serveo-skip-browser-warning': 'true',
