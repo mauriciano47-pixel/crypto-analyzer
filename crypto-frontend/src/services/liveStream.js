@@ -86,7 +86,6 @@ export class CryptoLiveStream {
     this.enrichData();
     const patterns = detectCandlestickPatterns(this.candles);
     const lastCandle = this.candles[this.candles.length - 1];
-    const prevCandle = this.candles[this.candles.length - 2];
     
     let change24h = 0;
     if (this.candles.length > 1) {
@@ -154,7 +153,6 @@ export class CryptoLiveStream {
     const low = parseFloat(k.l);
     const close = parseFloat(k.c);
     const volume = parseFloat(k.v);
-    const isFinal = k.x;
 
     const newCandle = {
       time: candleTime,
@@ -219,8 +217,8 @@ export class CryptoLiveStream {
           this.enrichData();
           if (this.onUpdate) this.onUpdate(this.getState(), 'tick', this.candles[lastIndex]);
         }
-      } catch (e) {
-        // Silencio en errores de red periódicos
+      } catch {
+        // Fallback silencioso
       }
     }, 2000);
   }
@@ -229,7 +227,9 @@ export class CryptoLiveStream {
     if (this.ws) {
       try {
         this.ws.close();
-      } catch (e) {}
+      } catch {
+        // Ignorar error al cerrar
+      }
       this.ws = null;
     }
     if (this.pollInterval) {

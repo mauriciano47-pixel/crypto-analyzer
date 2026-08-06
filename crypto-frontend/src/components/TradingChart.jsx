@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, Radio, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 export default function TradingChart({ 
   data, 
@@ -26,7 +26,7 @@ export default function TradingChart({
   const priceLinesRef = useRef([]);
   const isFirstRenderRef = useRef(true);
   const dataRef = useRef(data);
-  const [priceFlash, setPriceFlash] = useState(null); // 'bullish' | 'bearish' | null
+  const [priceFlash, setPriceFlash] = useState(null);
   const prevPriceRef = useRef(currentPrice);
 
   // Efecto de parpadeo de precio en tiempo real
@@ -489,8 +489,8 @@ export default function TradingChart({
         matchingPattern.patron.toLowerCase().includes('hammer')
       );
 
-      let stopLossPrice = 0;
-      let targetPrice = 0;
+      let stopLossPrice;
+      let targetPrice;
 
       if (isBullish) {
         stopLossPrice = low * 0.997;

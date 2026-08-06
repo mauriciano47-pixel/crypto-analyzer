@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from './services/api';
 import { CryptoLiveStream } from './services/liveStream';
 import DataIngestion from './components/DataIngestion';
 import TradingChart from './components/TradingChart';
 import NewsColumn from './components/NewsColumn';
-import { Activity, PlusCircle, RefreshCw, Zap, TrendingUp, ShieldCheck } from 'lucide-react';
+import { Activity, PlusCircle, RefreshCw, Zap, TrendingUp } from 'lucide-react';
 
 const calcularBacktestingPatrones = (patternsList, chartSerie) => {
   if (!patternsList || patternsList.length === 0 || !chartSerie || chartSerie.length === 0) {
@@ -91,7 +91,7 @@ function App() {
   const [currentPrice, setCurrentPrice] = useState(null);
   const [priceChange24h, setPriceChange24h] = useState(0);
   const [liveTick, setLiveTick] = useState(null);
-  const [isLiveActive, setIsLiveActive] = useState(true);
+  const [isLiveActive] = useState(true);
 
   // Datos para Gráfico y Análisis
   const [chartData, setChartData] = useState([]);
@@ -100,8 +100,55 @@ function App() {
 
   const liveStreamRef = useRef(null);
 
+  const fetchLiveNews = useCallback(async (symbol) => {
+    try {
+      const cleanSym = symbol.split('/')[0];
+      const feedRes = await api.getNewsContext(1).catch(() => null);
+      if (feedRes && feedRes.coincidencias) {
+        const flattened = [];
+        const seen = new Set();
+        feedRes.coincidencias.forEach(c => {
+          (c.noticias || []).forEach(n => {
+            if (n.url && seen.has(n.url)) return;
+            if (n.url) seen.add(n.url);
+            flattened.push({
+              patron: c.patron || 'Noticia de Mercado',
+              fecha: n.fecha_publicacion || c.fecha || '',
+              titulo: n.titular || 'Actualización de Criptomonedas',
+              resumen: `Fuente: ${n.fuente || 'CoinTelegraph'} | Sentimiento: ${n.sentimiento || 'Neutral 🟡'}`,
+              url: n.url || '#'
+            });
+          });
+        });
+        if (flattened.length > 0) {
+          setNews(flattened);
+          return;
+        }
+      }
+
+      setNews([
+        {
+          patron: 'Flujo Institucional',
+          fecha: new Date().toISOString(),
+          titulo: `${cleanSym} experimenta alta actividad de trading en Binance y mercados spot`,
+          resumen: `Fuente: Cointelegraph | Sentimiento: Positivo 🟢`,
+          url: 'https://cointelegraph.com'
+        },
+        {
+          patron: 'Análisis Cuantitativo',
+          fecha: new Date(Date.now() - 3600000).toISOString(),
+          titulo: `Osciladores de Momentum en ${cleanSym} muestran zonas de interés para operadores`,
+          resumen: `Fuente: CoinDesk | Sentimiento: Neutral 🟡`,
+          url: 'https://coindesk.com'
+        }
+      ]);
+    } catch (e) {
+      console.warn('Noticias fallback:', e);
+    }
+  }, []);
+
   // Iniciar Stream en Vivo
-  const startLiveStream = async (symbol, timeframe) => {
+  const startLiveStream = useCallback(async (symbol, timeframe) => {
     setIsLoading(true);
     setError(null);
     setFocusedTime(null);
@@ -143,55 +190,16 @@ function App() {
 
     // 2. Traer noticias contextuales en segundo plano
     fetchLiveNews(symbol);
-  };
+  }, [fetchLiveNews]);
 
-  const fetchLiveNews = async (symbol) => {
+  const loadDatasets = useCallback(async () => {
     try {
-      const cleanSym = symbol.split('/')[0];
-      const feedRes = await api.getNewsContext(1).catch(() => null);
-      if (feedRes && feedRes.coincidencias) {
-        const flattened = [];
-        const seen = new Set();
-        feedRes.coincidencias.forEach(c => {
-          (c.noticias || []).forEach(n => {
-            if (n.url && seen.has(n.url)) return;
-            if (n.url) seen.add(n.url);
-            flattened.push({
-              patron: c.patron || 'Noticia de Mercado',
-              fecha: n.fecha_publicacion || c.fecha || '',
-              titulo: n.titular || 'Actualización de Criptomonedas',
-              resumen: `Fuente: ${n.fuente || 'CoinTelegraph'} | Sentimiento: ${n.sentimiento || 'Neutral 🟡'}`,
-              url: n.url || '#'
-            });
-          });
-        });
-        if (flattened.length > 0) {
-          setNews(flattened);
-          return;
-        }
-      }
-
-      // Noticias de respaldo en tiempo real
-      setNews([
-        {
-          patron: 'Flujo Institucional',
-          fecha: new Date().toISOString(),
-          titulo: `${cleanSym} experimenta alta actividad de trading en Binance y mercados spot`,
-          resumen: `Fuente: Cointelegraph | Sentimiento: Positivo 🟢`,
-          url: 'https://cointelegraph.com'
-        },
-        {
-          patron: 'Análisis Cuantitativo',
-          fecha: new Date(Date.now() - 3600000).toISOString(),
-          titulo: `Osciladores de Momentum en ${cleanSym} muestran zonas de interés para operadores`,
-          resumen: `Fuente: CoinDesk | Sentimiento: Neutral 🟡`,
-          url: 'https://coindesk.com'
-        }
-      ]);
-    } catch (e) {
-      console.warn('Noticias fallback:', e);
+      const data = await api.getDatasets();
+      setDatasets(data || []);
+    } catch (err) {
+      console.error(err);
     }
-  };
+  }, []);
 
   // Cargar al montar el componente
   useEffect(() => {
@@ -203,16 +211,7 @@ function App() {
         liveStreamRef.current.disconnect();
       }
     };
-  }, []);
-
-  const loadDatasets = async () => {
-    try {
-      const data = await api.getDatasets();
-      setDatasets(data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  }, [loadDatasets, startLiveStream]);
 
   const handleDatasetCreated = (dataset) => {
     setDatasets(prev => [dataset, ...prev]);
