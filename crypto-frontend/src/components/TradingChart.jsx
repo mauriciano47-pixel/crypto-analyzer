@@ -1,8 +1,20 @@
-import React, { useEffect, useRef } from 'react';
-import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createChart, CandlestickSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts';
+import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, Radio, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
-export default function TradingChart({ data, patterns, focusedTime, selectedDataset }) {
+export default function TradingChart({ 
+  data, 
+  patterns, 
+  focusedTime, 
+  selectedDataset,
+  liveTick = null,
+  currentPrice = null,
+  priceChange24h = 0,
+  isLiveStreaming = true,
+  liveSymbol = 'BTC/USDT',
+  liveTimeframe = '1m',
+  onTimeframeChange = null
+}) {
   const chartContainerRef = useRef();
   const chartRef = useRef();
   const candlestickSeriesRef = useRef();
@@ -11,10 +23,23 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
   const rsiContainerRef = useRef();
   const rsiChartRef = useRef();
   const rsiSeriesRef = useRef();
-  const volumeSeriesRef = useRef();
   const priceLinesRef = useRef([]);
   const isFirstRenderRef = useRef(true);
   const dataRef = useRef(data);
+  const [priceFlash, setPriceFlash] = useState(null); // 'bullish' | 'bearish' | null
+  const prevPriceRef = useRef(currentPrice);
+
+  // Efecto de parpadeo de precio en tiempo real
+  useEffect(() => {
+    if (currentPrice !== null && prevPriceRef.current !== null && currentPrice !== prevPriceRef.current) {
+      const flash = currentPrice >= prevPriceRef.current ? 'bullish' : 'bearish';
+      setPriceFlash(flash);
+      const timer = setTimeout(() => setPriceFlash(null), 400);
+      prevPriceRef.current = currentPrice;
+      return () => clearTimeout(timer);
+    }
+    prevPriceRef.current = currentPrice;
+  }, [currentPrice]);
 
   const handleZoomIn = () => {
     if (!chartRef.current) return;
@@ -75,7 +100,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     const container = chartContainerRef.current;
     const chart = createChart(container, {
       width: container.clientWidth,
-      height: container.clientHeight || 480,
+      height: container.clientHeight || 400,
       layout: {
         background: { type: 'solid', color: '#0B0E14' },
         textColor: '#94A3B8',
@@ -102,18 +127,19 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       timeScale: {
         borderColor: 'rgba(255, 255, 255, 0.08)',
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: true,
       },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.08)',
+        autoScale: true,
       },
       watermark: {
         visible: true,
-        fontSize: 44,
+        fontSize: 40,
         fontFamily: 'Inter, sans-serif',
         fontWeight: 'bold',
         color: 'rgba(255, 255, 255, 0.03)',
-        text: selectedDataset ? `${selectedDataset.asset_symbol} (${selectedDataset.timeframe})` : 'Cargando...',
+        text: liveSymbol || 'CRYPTO ANALYZER',
         horzAlign: 'center',
         vertAlign: 'center',
       },
@@ -123,7 +149,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       if (chartContainerRef.current) {
         chart.applyOptions({
           width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight || 380
+          height: chartContainerRef.current.clientHeight || 400
         });
       }
       if (rsiContainerRef.current) {
@@ -137,7 +163,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
 
     chartRef.current = chart;
 
-    // Crear serie de velas
+    // Serie de velas japonesas
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#089981',
       downColor: '#f23645',
@@ -150,7 +176,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     });
     candlestickSeriesRef.current = candlestickSeries;
 
-    // Crear serie de SMA 20
+    // Serie de SMA 20
     const sma20Series = chart.addSeries(LineSeries, {
       color: '#2962FF',
       lineWidth: 2,
@@ -158,7 +184,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     });
     sma20SeriesRef.current = sma20Series;
 
-    // Crear serie de SMA 50
+    // Serie de SMA 50
     const sma50Series = chart.addSeries(LineSeries, {
       color: '#FF9800',
       lineWidth: 2,
@@ -166,7 +192,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     });
     sma50SeriesRef.current = sma50Series;
 
-    // Crear gráfico de RSI
+    // Gráfico de RSI
     const rsiChart = createChart(rsiContainerRef.current, {
       width: rsiContainerRef.current.clientWidth,
       height: 110,
@@ -182,7 +208,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       },
       timeScale: {
         borderColor: 'rgba(255, 255, 255, 0.08)',
-        visible: false, // Ocultar escala del RSI ya que está alineado temporalmente
+        visible: false,
       },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -197,22 +223,22 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     });
     rsiSeriesRef.current = rsiSeries;
 
-    // Líneas horizontales de sobrecompra (70) y sobreventa (30) en el RSI
+    // Líneas de sobrecompra (70) y sobreventa (30)
     rsiSeries.createPriceLine({
       price: 70,
-      color: 'rgba(239, 68, 68, 0.4)',
+      color: 'rgba(239, 68, 68, 0.5)',
       lineWidth: 1,
       lineStyle: 3,
       axisLabelVisible: true,
-      title: 'SOBRECOMPRA',
+      title: '70 SOBRECOMPRA',
     });
     rsiSeries.createPriceLine({
       price: 30,
-      color: 'rgba(16, 185, 129, 0.4)',
+      color: 'rgba(16, 185, 129, 0.5)',
       lineWidth: 1,
       lineStyle: 3,
       axisLabelVisible: true,
-      title: 'SOBREVENTA',
+      title: '30 SOBREVENTA',
     });
 
     // Sincronizar escalas de tiempo
@@ -234,7 +260,6 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       isSyncing = false;
     });
 
-    // Marcar que es el primer render para ajustar la escala visual al cargar los primeros datos
     isFirstRenderRef.current = true;
 
     return () => {
@@ -248,27 +273,24 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       rsiChartRef.current = null;
       rsiSeriesRef.current = null;
     };
-  }, [selectedDataset?.id]);
+  }, [selectedDataset?.id, liveSymbol]);
 
-  // Sincronizar data en la referencia mutable para su uso en callbacks de eventos sin disparar hooks
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
 
-  // Actualizar datos de las series (velas y SMA) de forma reactiva sin destruir el gráfico
+  // Actualización masiva de datos iniciales
   useEffect(() => {
     if (!data || !candlestickSeriesRef.current) return;
 
-    // Convertir y ordenar fechas como timestamps UNIX
     const formattedData = data.map(d => ({
-      time: Math.floor(new Date(d.fecha).getTime() / 1000), 
+      time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000), 
       open: parseFloat(d.open),
       high: parseFloat(d.high),
       low: parseFloat(d.low),
       close: parseFloat(d.close),
     })).sort((a, b) => a.time - b.time);
 
-    // Filtrar duplicados de fecha
     const uniqueFormattedData = [];
     const seenTimes = new Set();
     for (const item of formattedData) {
@@ -278,12 +300,14 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       }
     }
 
-    candlestickSeriesRef.current.setData(uniqueFormattedData);
+    if (uniqueFormattedData.length > 0) {
+      candlestickSeriesRef.current.setData(uniqueFormattedData);
+    }
 
     // Sincronizar SMA 20
     if (sma20SeriesRef.current) {
-      const rawSmaData = data.filter(d => d.sma_20).map(d => ({
-        time: Math.floor(new Date(d.fecha).getTime() / 1000),
+      const rawSmaData = data.filter(d => d.sma_20 !== null && d.sma_20 !== undefined).map(d => ({
+        time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000),
         value: parseFloat(d.sma_20)
       })).sort((a, b) => a.time - b.time);
 
@@ -300,8 +324,8 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
 
     // Sincronizar SMA 50
     if (sma50SeriesRef.current) {
-      const rawSma50Data = data.filter(d => d.sma_50).map(d => ({
-        time: Math.floor(new Date(d.fecha).getTime() / 1000),
+      const rawSma50Data = data.filter(d => d.sma_50 !== null && d.sma_50 !== undefined).map(d => ({
+        time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000),
         value: parseFloat(d.sma_50)
       })).sort((a, b) => a.time - b.time);
 
@@ -319,7 +343,7 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     // Sincronizar RSI 14
     if (rsiSeriesRef.current) {
       const rawRsiData = data.filter(d => d.rsi_14 !== null && d.rsi_14 !== undefined).map(d => ({
-        time: Math.floor(new Date(d.fecha).getTime() / 1000),
+        time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000),
         value: parseFloat(d.rsi_14)
       })).sort((a, b) => a.time - b.time);
 
@@ -334,14 +358,53 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       rsiSeriesRef.current.setData(uniqueRsiData);
     }
 
-    // Centrar todo el contenido únicamente en la primera carga del dataset
     if (isFirstRenderRef.current && chartRef.current && uniqueFormattedData.length > 0) {
       chartRef.current.timeScale().fitContent();
       isFirstRenderRef.current = false;
     }
   }, [data]);
 
-  // Actualizar dinámicamente los marcadores de patrones
+  // Actualización fluida en tiempo real (Tick a Tick vía WebSocket)
+  useEffect(() => {
+    if (!liveTick || !candlestickSeriesRef.current) return;
+
+    try {
+      const formattedTick = {
+        time: typeof liveTick.time === 'number' ? liveTick.time : Math.floor(new Date(liveTick.fecha).getTime() / 1000),
+        open: parseFloat(liveTick.open),
+        high: parseFloat(liveTick.high),
+        low: parseFloat(liveTick.low),
+        close: parseFloat(liveTick.close),
+      };
+
+      candlestickSeriesRef.current.update(formattedTick);
+
+      if (liveTick.rsi_14 !== undefined && liveTick.rsi_14 !== null && rsiSeriesRef.current) {
+        rsiSeriesRef.current.update({
+          time: formattedTick.time,
+          value: parseFloat(liveTick.rsi_14)
+        });
+      }
+
+      if (liveTick.sma_20 !== undefined && liveTick.sma_20 !== null && sma20SeriesRef.current) {
+        sma20SeriesRef.current.update({
+          time: formattedTick.time,
+          value: parseFloat(liveTick.sma_20)
+        });
+      }
+
+      if (liveTick.sma_50 !== undefined && liveTick.sma_50 !== null && sma50SeriesRef.current) {
+        sma50SeriesRef.current.update({
+          time: formattedTick.time,
+          value: parseFloat(liveTick.sma_50)
+        });
+      }
+    } catch (e) {
+      console.warn('Error aplicando liveTick:', e);
+    }
+  }, [liveTick]);
+
+  // Actualizar marcadores de patrones
   useEffect(() => {
     if (!candlestickSeriesRef.current) return;
 
@@ -358,14 +421,14 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       );
       
       const isFocused = focusedTime === p.fecha;
-      const markerTime = Math.floor(new Date(p.fecha).getTime() / 1000);
+      const markerTime = typeof p.time === 'number' ? p.time : Math.floor(new Date(p.fecha).getTime() / 1000);
       
       return {
         time: markerTime,
         position: isBullish ? 'belowBar' : 'aboveBar',
         color: isBullish 
-          ? (isFocused ? '#10B981' : 'rgba(16, 185, 129, 0.4)')
-          : (isFocused ? '#EF4444' : 'rgba(239, 68, 68, 0.4)'),
+          ? (isFocused ? '#10B981' : 'rgba(16, 185, 129, 0.6)')
+          : (isFocused ? '#EF4444' : 'rgba(239, 68, 68, 0.6)'),
         shape: isBullish ? 'arrowUp' : 'arrowDown',
         text: isFocused ? p.patron : '',
         size: isFocused ? 2 : 1,
@@ -391,9 +454,8 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     createSeriesMarkers(candlestickSeriesRef.current, uniqueMarkers);
   }, [data, patterns, focusedTime]);
 
-  // Desplazar el gráfico al patrón enfocado y dibujar proyecciones de inversión (TP, SL, Entrada)
+  // Proyecciones TP/SL al enfocar un patrón
   useEffect(() => {
-    // 1. Limpiar líneas de precio anteriores si existen
     if (priceLinesRef.current && priceLinesRef.current.length > 0 && candlestickSeriesRef.current) {
       priceLinesRef.current.forEach(line => {
         try {
@@ -410,16 +472,16 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
     if (!currentData || currentData.length === 0) return;
 
     const targetTime = Math.floor(new Date(focusedTime).getTime() / 1000);
-    
-    // Buscar la vela seleccionada para obtener precios
-    const targetCandle = currentData.find(d => Math.floor(new Date(d.fecha).getTime() / 1000) === targetTime);
+    const targetCandle = currentData.find(d => {
+      const t = typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000);
+      return t === targetTime;
+    });
     
     if (targetCandle && candlestickSeriesRef.current) {
       const entryPrice = parseFloat(targetCandle.close);
       const high = parseFloat(targetCandle.high);
       const low = parseFloat(targetCandle.low);
       
-      // Identificar si el patrón es alcista (bullish) o bajista (bearish)
       const matchingPattern = patterns.find(p => p.fecha === focusedTime);
       const isBullish = matchingPattern && matchingPattern.patron && (
         matchingPattern.patron.toLowerCase().includes('bullish') || 
@@ -431,82 +493,138 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
       let targetPrice = 0;
 
       if (isBullish) {
-        // Alcista: Stop loss por debajo del mínimo de la vela (0.3% holgura), TP a ratio 1:2
         stopLossPrice = low * 0.997;
         const risk = entryPrice - stopLossPrice;
         targetPrice = entryPrice + (risk * 2);
       } else {
-        // Bajista: Stop loss por encima del máximo de la vela (0.3% holgura), TP a ratio 1:2
         stopLossPrice = high * 1.003;
         const risk = stopLossPrice - entryPrice;
         targetPrice = entryPrice - (risk * 2);
       }
 
-      // Dibujar las líneas en el gráfico principal
       const entryLine = candlestickSeriesRef.current.createPriceLine({
         price: entryPrice,
-        color: '#2563EB', // Azul
+        color: '#2563EB',
         lineWidth: 2,
-        lineStyle: 2, // Punteada
+        lineStyle: 2,
         axisLabelVisible: true,
         title: 'ENTRADA',
       });
 
       const targetLine = candlestickSeriesRef.current.createPriceLine({
         price: targetPrice,
-        color: '#10B981', // Verde
+        color: '#10B981',
         lineWidth: 2,
-        lineStyle: 1, // Discontinua
+        lineStyle: 1,
         axisLabelVisible: true,
-        title: `TP (TARGET) $${targetPrice.toFixed(2)}`,
+        title: `TP $${targetPrice.toFixed(2)}`,
       });
 
       const stopLine = candlestickSeriesRef.current.createPriceLine({
         price: stopLossPrice,
-        color: '#EF4444', // Rojo
+        color: '#EF4444',
         lineWidth: 2,
-        lineStyle: 1, // Discontinua
+        lineStyle: 1,
         axisLabelVisible: true,
-        title: `SL (STOP LOSS) $${stopLossPrice.toFixed(2)}`,
+        title: `SL $${stopLossPrice.toFixed(2)}`,
       });
 
       priceLinesRef.current = [entryLine, targetLine, stopLine];
     }
-    
-    // Calcular margen temporal dinámico
-    let timeDelta = 15 * 24 * 60 * 60;
-    if (currentData.length > 1) {
-      const firstTime = new Date(currentData[0].fecha).getTime();
-      const lastTime = new Date(currentData[currentData.length - 1].fecha).getTime();
-      const avgIntervalSeconds = Math.floor((lastTime - firstTime) / (currentData.length - 1) / 1000);
-      if (avgIntervalSeconds > 0) {
-        timeDelta = avgIntervalSeconds * 15;
-      }
-    }
-
-    try {
-      chartRef.current.timeScale().setVisibleRange({
-        from: targetTime - timeDelta,
-        to: targetTime + timeDelta,
-      });
-    } catch (err) {
-      console.warn('Error setting visible range:', err);
-    }
   }, [focusedTime, patterns]);
 
+  const displayPrice = currentPrice !== null 
+    ? currentPrice 
+    : (data && data.length > 0 ? parseFloat(data[data.length - 1].close) : 0);
+
+  const isPositiveChange = priceChange24h >= 0;
+
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '640px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h3 style={{ margin: 0 }}>Gráfico de Precio</h3>
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '670px', padding: '1.25rem' }}>
+      
+      {/* Header del Gráfico en Tiempo Real */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         
-        {/* Barra de controles de navegación */}
+        {/* Ticker y Precio en Vivo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#F8FAFC' }}>
+                {liveSymbol}
+              </h2>
+              {isLiveStreaming && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '12px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block', boxShadow: '0 0 6px #10B981', animation: 'pulse 1.5s infinite' }} />
+                  <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#10B981', letterSpacing: '0.05em' }}>EN VIVO 1s</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Selector de temporalidades rápidas */}
+            {onTimeframeChange && (
+              <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                {['1m', '5m', '15m', '1h', '1d'].map(tf => (
+                  <button
+                    key={tf}
+                    onClick={() => onTimeframeChange(tf)}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '0.7rem',
+                      fontWeight: '700',
+                      borderRadius: '4px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: liveTimeframe === tf ? 'var(--neon-blue)' : 'rgba(255, 255, 255, 0.05)',
+                      color: liveTimeframe === tf ? '#FFFFFF' : '#94A3B8',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {tf.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Badge de Precio en Tiempo Real con Flash Reactivo */}
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'baseline', 
+              gap: '0.6rem',
+              padding: '0.4rem 0.8rem',
+              borderRadius: '8px',
+              backgroundColor: priceFlash === 'bullish' 
+                ? 'rgba(16, 185, 129, 0.2)' 
+                : priceFlash === 'bearish' 
+                  ? 'rgba(239, 68, 68, 0.2)' 
+                  : 'rgba(255, 255, 255, 0.03)',
+              border: `1px solid ${
+                priceFlash === 'bullish' 
+                  ? 'rgba(16, 185, 129, 0.5)' 
+                  : priceFlash === 'bearish' 
+                    ? 'rgba(239, 68, 68, 0.5)' 
+                    : 'rgba(255, 255, 255, 0.08)'
+              }`,
+              transition: 'background-color 0.2s, border-color 0.2s'
+            }}
+          >
+            <span style={{ fontSize: '1.5rem', fontWeight: '800', fontFamily: 'monospace', color: priceFlash === 'bullish' ? '#10B981' : priceFlash === 'bearish' ? '#EF4444' : '#F8FAFC' }}>
+              ${displayPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+            </span>
+            <span style={{ fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', color: isPositiveChange ? '#10B981' : '#EF4444' }}>
+              {isPositiveChange ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+              {isPositiveChange ? '+' : ''}{priceChange24h.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+        
+        {/* Barra de Controles de Zoom y Desplazamiento */}
         <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'rgba(15, 23, 42, 0.6)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <button 
             onClick={handleScrollLeft} 
-            title="Desplazarse a la Izquierda (Pasado)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#F8FAFC'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; }}
+            title="Desplazarse al Pasado"
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ChevronLeft size={18} />
           </button>
@@ -514,19 +632,15 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
           <button 
             onClick={handleZoomOut} 
             title="Alejar (Zoom Out)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#F8FAFC'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; }}
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ZoomOut size={18} />
           </button>
  
           <button 
             onClick={handleReset} 
-            title="Ajustar Contenido Completo"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#F8FAFC'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; }}
+            title="Ajustar Todo (Fit Content)"
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <Maximize2 size={18} />
           </button>
@@ -534,44 +648,38 @@ export default function TradingChart({ data, patterns, focusedTime, selectedData
           <button 
             onClick={handleZoomIn} 
             title="Acercar (Zoom In)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#F8FAFC'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; }}
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ZoomIn size={18} />
           </button>
  
           <button 
             onClick={handleScrollRight} 
-            title="Desplazarse a la Derecha (Futuro)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#F8FAFC'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; }}
+            title="Desplazarse al Futuro"
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ChevronRight size={18} />
           </button>
  
           <button 
             onClick={handleScrollToRecent} 
-            title="Ir al Final (Más Reciente)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#F8FAFC'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; }}
+            title="Ir a la Vela Actual (En Vivo)"
+            style={{ padding: '6px', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', color: '#3B82F6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ChevronsRight size={18} />
           </button>
         </div>
       </div>
       
-      {/* Contenedores de Gráficos Integrados */}
+      {/* Contenedores de Gráficos (Velas Principales + Oscilador RSI) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
         <div 
           ref={chartContainerRef} 
-          style={{ position: 'relative', height: '380px', width: '100%' }} 
+          style={{ position: 'relative', height: '390px', width: '100%' }} 
         />
         <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '4px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px 4px 8px' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#8B5CF6', letterSpacing: '0.05em' }}>MOMENTUM OSCILLATOR - RSI (14)</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#8B5CF6', letterSpacing: '0.05em' }}>MOMENTUM OSCILLATOR - RSI (14) EN TIEMPO REAL</span>
           </div>
           <div 
             ref={rsiContainerRef} 
