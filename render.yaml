@@ -1,7 +1,7 @@
 services:
   - type: web
     name: crypto-analyzer-backend
-    env: python
+    runtime: python
     rootDir: crypto-pattern-analyzer
     buildCommand: "./build.sh"
     startCommand: "gunicorn core.wsgi:application"

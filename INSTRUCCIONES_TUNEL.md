@@ -15,12 +15,14 @@ Este archivo documenta la configuración y los comandos necesarios para exponer 
 
 Para levantar los túneles públicos de forma correcta en Windows sin fallos `502 Bad Gateway`, se debe usar la IP explícita `127.0.0.1` en lugar de `localhost`. Abre dos terminales independientes y ejecuta:
 
-### 1. Túnel del Backend (Puerto 8005):
+### 1. Túnel del Backend (Puerto 8005)
+
 ```bash
 npx localtunnel --port 8005 --subdomain cryptoanalyzer-backend
 ```
 
-### 2. Túnel del Frontend (Puerto 3005):
+### 2. Túnel del Frontend (Puerto 3005)
+
 ```bash
 npx localtunnel --port 3005 --subdomain cryptoanalyzer-frontend
 ```
@@ -29,7 +31,7 @@ npx localtunnel --port 3005 --subdomain cryptoanalyzer-frontend
 
 ## 🔒 Solución a los Errores de Red ("Failed to Fetch" / "No se pudo obtener")
 
-Los túneles gratuitos de Serveo muestran una advertencia intermedia anti-phishing al acceder por primera vez. Esto rompe las llamadas asíncronas AJAX (Preflight OPTIONS) del navegador. 
+Los túneles gratuitos de Serveo muestran una advertencia intermedia anti-phishing al acceder por primera vez. Esto rompe las llamadas asíncronas AJAX (Preflight OPTIONS) del navegador.
 
 Para que la aplicación funcione en cualquier computadora externa, se deben seguir estos pasos:
 

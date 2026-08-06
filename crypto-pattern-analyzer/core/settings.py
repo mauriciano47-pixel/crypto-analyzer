@@ -73,13 +73,20 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # --- Base de datos ---
 # PostgreSQL en producción (si se provee DATABASE_URL) y SQLite para desarrollo
-import dj_database_url
-
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
-    }
+    try:
+        import dj_database_url
+        DATABASES = {
+            'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
+        }
+    except ImportError:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 else:
     DATABASES = {
         'default': {
@@ -141,12 +148,28 @@ else:
         ).split(',')
     ]
 
-from corsheaders.defaults import default_headers
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    'serveo-skip-browser-warning',
-    'ngrok-skip-browser-warning',
-    'bypass-tunnel-reminder',
-]
+try:
+    from corsheaders.defaults import default_headers
+    CORS_ALLOW_HEADERS = list(default_headers) + [
+        'serveo-skip-browser-warning',
+        'ngrok-skip-browser-warning',
+        'bypass-tunnel-reminder',
+    ]
+except ImportError:
+    CORS_ALLOW_HEADERS = [
+        'accept',
+        'accept-encoding',
+        'authorization',
+        'content-type',
+        'dnt',
+        'origin',
+        'user-agent',
+        'x-csrftoken',
+        'x-requested-with',
+        'serveo-skip-browser-warning',
+        'ngrok-skip-browser-warning',
+        'bypass-tunnel-reminder',
+    ]
 
 
 # --- Archivos subidos (CSV de precios) ---
