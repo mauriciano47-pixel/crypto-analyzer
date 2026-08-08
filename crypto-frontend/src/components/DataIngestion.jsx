@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { api } from '../services/api';
 import { UploadCloud, Zap, AlertTriangle } from 'lucide-react';
 

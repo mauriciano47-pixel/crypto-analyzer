@@ -81,7 +81,7 @@ const calcularBacktestingPatrones = (patternsList, chartSerie) => {
 function App() {
   const [datasets, setDatasets] = useState([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState('LIVE_BTC');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [focusedTime, setFocusedTime] = useState(null);
 
@@ -147,7 +147,7 @@ function App() {
     }
   }, []);
 
-  // Iniciar Stream en Vivo
+  // Iniciar Stream en Vivo (interacción del usuario)
   const startLiveStream = useCallback(async (symbol, timeframe) => {
     setIsLoading(true);
     setError(null);
@@ -192,26 +192,59 @@ function App() {
     fetchLiveNews(symbol);
   }, [fetchLiveNews]);
 
-  const loadDatasets = useCallback(async () => {
-    try {
-      const data = await api.getDatasets();
-      setDatasets(data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
 
   // Cargar al montar el componente
   useEffect(() => {
-    loadDatasets();
-    startLiveStream('BTC/USDT', '1m');
+    let isMounted = true;
+
+    api.getDatasets()
+      .then(data => {
+        if (isMounted) {
+          setDatasets(data || []);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+      });
+
+    const stream = new CryptoLiveStream('BTC/USDT', '1m', (state, eventType, tick) => {
+      if (!isMounted) return;
+      if (eventType === 'tick' && tick) {
+        setLiveTick(tick);
+        setCurrentPrice(state.currentPrice);
+        setPriceChange24h(state.priceChange24h);
+      } else {
+        setChartData(state.candles);
+        const evaluated = calcularBacktestingPatrones(state.patterns, state.candles);
+        setPatterns(evaluated);
+        setCurrentPrice(state.currentPrice);
+        setPriceChange24h(state.priceChange24h);
+      }
+    });
+
+    liveStreamRef.current = stream;
+
+    stream.initHistory(120).then(initial => {
+      if (!isMounted) return;
+      if (initial) {
+        setChartData(initial.candles);
+        const evaluated = calcularBacktestingPatrones(initial.patterns, initial.candles);
+        setPatterns(evaluated);
+        setCurrentPrice(initial.currentPrice);
+        setPriceChange24h(initial.priceChange24h);
+      }
+      stream.connect();
+      setIsLoading(false);
+      fetchLiveNews('BTC/USDT');
+    });
 
     return () => {
+      isMounted = false;
       if (liveStreamRef.current) {
         liveStreamRef.current.disconnect();
       }
     };
-  }, [loadDatasets, startLiveStream]);
+  }, [fetchLiveNews]);
 
   const handleDatasetCreated = (dataset) => {
     setDatasets(prev => [dataset, ...prev]);

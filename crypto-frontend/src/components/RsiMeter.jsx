@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Gauge } from 'lucide-react';
 
 export default function RsiMeter({ lecturaRsi }) {

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -8,6 +7,20 @@ import {
   CartesianGrid,
   Tooltip
 } from 'recharts';
+
+function CustomTooltip({ active, payload, label }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="glass-card" style={{ padding: '1rem', border: '1px solid rgba(255,255,255,0.2)' }}>
+        <p style={{ margin: 0, fontWeight: 'bold' }}>{label}</p>
+        <p style={{ margin: '0.5rem 0 0 0', color: '#38bdf8' }}>Cierre: ${payload[0].value.toFixed(2)}</p>
+        {payload[1] && payload[1].value && <p style={{ margin: '0.25rem 0 0 0', color: 'var(--accent-bullish)', fontSize: '0.85rem' }}>↗ Patrón Alcista Detectado</p>}
+        {payload[2] && payload[2].value && <p style={{ margin: '0.25rem 0 0 0', color: 'var(--accent-bearish)', fontSize: '0.85rem' }}>↘ Patrón Bajista Detectado</p>}
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function InteractiveChart({ seriesData, patternsData }) {
   if (!seriesData || seriesData.length === 0) return null;
@@ -34,20 +47,6 @@ export default function InteractiveChart({ seriesData, patternsData }) {
       hasBearish: isBearish ? parseFloat(d.close) : null
     };
   });
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="glass-card" style={{ padding: '1rem', border: '1px solid rgba(255,255,255,0.2)' }}>
-          <p style={{ margin: 0, fontWeight: 'bold' }}>{label}</p>
-          <p style={{ margin: '0.5rem 0 0 0', color: '#38bdf8' }}>Cierre: ${payload[0].value.toFixed(2)}</p>
-          {payload[1] && payload[1].value && <p style={{ margin: '0.25rem 0 0 0', color: 'var(--accent-bullish)', fontSize: '0.85rem' }}>↗ Patrón Alcista Detectado</p>}
-          {payload[2] && payload[2].value && <p style={{ margin: '0.25rem 0 0 0', color: 'var(--accent-bearish)', fontSize: '0.85rem' }}>↘ Patrón Bajista Detectado</p>}
-        </div>
-      );
-    }
-    return null;
-  };
 
   // Calcular min y max para que el gráfico no empiece en 0
   const minClose = Math.min(...chartData.map(d => d.close));

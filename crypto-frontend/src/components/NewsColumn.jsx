@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Newspaper } from 'lucide-react';
 
 export default function NewsColumn({ news }) {
