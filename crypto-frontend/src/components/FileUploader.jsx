@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, AlertCircle } from 'lucide-react';
+import { parseClientCSV, createDatasetObject } from '../services/clientDataEngine';
 
 export default function FileUploader({ onUploadSuccess }) {
   const [uploading, setUploading] = useState(false);
@@ -13,27 +14,26 @@ export default function FileUploader({ onUploadSuccess }) {
     setUploading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append('asset_symbol', 'BTC'); 
-    formData.append('timeframe', '1d');
-    formData.append('archivo', file);
-
-    fetch('http://127.0.0.1:8000/api/datasets/upload/', {
-      method: 'POST',
-      body: formData,
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Error al procesar el archivo en el servidor');
-        return res.json();
-      })
-      .then(data => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const candles = parseClientCSV(text);
+        const dataset = createDatasetObject('CSV_UPLOAD', '1d', candles);
         setUploading(false);
-        onUploadSuccess(data.id);
-      })
-      .catch(err => {
+        if (onUploadSuccess) {
+          onUploadSuccess(dataset);
+        }
+      } catch (err) {
         setUploading(false);
-        setError(err.message);
-      });
+        setError(err.message || 'Error al procesar el archivo CSV.');
+      }
+    };
+    reader.onerror = () => {
+      setUploading(false);
+      setError('Error al leer el archivo en el dispositivo.');
+    };
+    reader.readAsText(file);
   }, [onUploadSuccess]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -43,30 +43,30 @@ export default function FileUploader({ onUploadSuccess }) {
   });
 
   return (
-    <div className="glass-card" style={{ textAlign: 'center', padding: '4rem 2rem', margin: '4rem auto', maxWidth: '600px', cursor: 'pointer', border: isDragActive ? '2px dashed var(--accent-bullish)' : '2px dashed var(--glass-border)' }} {...getRootProps()}>
+    <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 2rem', margin: '2rem auto', maxWidth: '600px', cursor: 'pointer', border: isDragActive ? '2px dashed var(--accent-bullish)' : '2px dashed var(--border-color)', borderRadius: '12px' }} {...getRootProps()}>
       <input {...getInputProps()} />
       {uploading ? (
         <div style={{ animation: 'pulse 2s infinite' }}>
-          <UploadCloud size={64} style={{ color: 'var(--accent-bullish)', margin: '0 auto 1rem' }} />
-          <h3>Subiendo y analizando datos...</h3>
-          <p style={{ color: 'var(--text-muted)' }}>El motor cuántico está trabajando...</p>
+          <UploadCloud size={56} style={{ color: 'var(--neon-green)', margin: '0 auto 1rem' }} />
+          <h3>Procesando y analizando datos en cliente...</h3>
+          <p className="text-muted">Calculando RSI, Medias Móviles y patrones técnicos...</p>
         </div>
       ) : (
         <div>
-          <UploadCloud size={64} style={{ color: isDragActive ? 'var(--accent-bullish)' : 'var(--text-muted)', margin: '0 auto 1rem' }} />
+          <UploadCloud size={56} style={{ color: isDragActive ? 'var(--neon-green)' : 'var(--text-muted)', margin: '0 auto 1rem' }} />
           {isDragActive ? (
             <h3>¡Suelta el archivo aquí!</h3>
           ) : (
             <>
-              <h3>Arrastra tu archivo CSV del mercado</h3>
-              <p style={{ color: 'var(--text-muted)' }}>O haz clic para seleccionar el archivo de tu PC</p>
+              <h3 style={{ marginBottom: '0.5rem' }}>Arrastra tu archivo CSV del mercado</h3>
+              <p className="text-muted">Columnas soportadas: date, open, high, low, close, volume</p>
             </>
           )}
         </div>
       )}
       {error && (
-        <div style={{ color: 'var(--accent-bearish)', marginTop: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-          <AlertCircle size={20} />
+        <div style={{ color: 'var(--neon-red)', marginTop: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+          <AlertCircle size={18} />
           <span>{error}</span>
         </div>
       )}
