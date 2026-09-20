@@ -1,0 +1,12 @@
+{
+  "name": "crypto-analyzer-suite",
+  "version": "1.2.0",
+  "private": true,
+  "workspaces": [
+    "crypto-frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=crypto-frontend",
+    "lint": "npm run lint --workspace=crypto-frontend"
+  }
+}
