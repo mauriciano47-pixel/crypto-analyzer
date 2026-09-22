@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UploadCloud, Zap, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import { UploadCloud, CandlestickChart, TrendingUp, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import { fetchBinanceKlines, parseClientCSV, createDatasetObject } from '../services/clientDataEngine';
 
 export default function DataIngestion({ onDatasetCreated }) {
@@ -98,7 +98,7 @@ export default function DataIngestion({ onDatasetCreated }) {
       {/* Pestañas de Acceso Rápido */}
       <div className="card">
         <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Zap size={18} className="text-bullish" /> Carga Rápida en 1 Clic (Demos Cuantitativas)
+          <CandlestickChart size={18} className="text-bullish" /> Carga Rápida en 1 Clic (Demos Cuantitativas)
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
           {[
@@ -134,7 +134,7 @@ export default function DataIngestion({ onDatasetCreated }) {
             style={{ flex: 1 }}
             onClick={() => setMode('ccxt')}
           >
-            <Zap size={18} /> Fetch en Vivo (Binance)
+            <TrendingUp size={18} /> Fetch en Vivo (Binance)
           </button>
           <button 
             type="button"

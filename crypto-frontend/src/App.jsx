@@ -6,7 +6,7 @@ import DataIngestion from './components/DataIngestion';
 import TradingChart from './components/TradingChart';
 import NewsColumn from './components/NewsColumn';
 import AuthScreen from './components/AuthScreen';
-import { Activity, PlusCircle, RefreshCw, Zap, TrendingUp, User, LogOut } from 'lucide-react';
+import { PlusCircle, RefreshCw, CandlestickChart, TrendingUp, User, LogOut } from 'lucide-react';
 
 const calcularBacktestingPatrones = (patternsList, chartSerie) => {
   if (!patternsList || patternsList.length === 0 || !chartSerie || chartSerie.length === 0) {
@@ -410,7 +410,7 @@ function App() {
         {/* Header Principal */}
         <header className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1.5rem', borderBottom: '1px solid var(--border-color)', zIndex: 10, flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Activity className="text-bullish" size={24} />
+            <CandlestickChart className="text-bullish" size={26} />
             <div>
               <h1 style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                 crypto analizer
@@ -422,7 +422,7 @@ function App() {
           {/* Barra de Monedas Rápidas en Tiempo Real */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'rgba(15, 23, 42, 0.7)', padding: '4px 8px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94A3B8', marginRight: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Zap size={14} className="text-bullish" /> EN VIVO:
+              <TrendingUp size={14} className="text-bullish" /> EN VIVO:
             </span>
             {['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'BNB'].map(coin => {
               const pair = `${coin}/USDT`;

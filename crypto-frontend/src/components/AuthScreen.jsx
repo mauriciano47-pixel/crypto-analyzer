@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, User, Lock, Eye, EyeOff, Zap, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { CandlestickChart, TrendingUp, User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { authService } from '../services/authService';
 
 export default function AuthScreen({ onAuthSuccess }) {
@@ -76,7 +76,7 @@ export default function AuthScreen({ onAuthSuccess }) {
             justifyContent: 'center',
             boxShadow: '0 0 20px rgba(16, 185, 129, 0.25)'
           }}>
-            <Activity size={30} className="text-bullish" />
+            <CandlestickChart size={32} className="text-bullish" />
           </div>
 
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', margin: '0 0 0.4rem 0' }}>
@@ -270,7 +270,7 @@ export default function AuthScreen({ onAuthSuccess }) {
             cursor: 'pointer'
           }}
         >
-          <Zap size={16} className="text-bullish" />
+          <TrendingUp size={16} className="text-bullish" />
           <span>Explorar como Invitado (Sin Registro)</span>
         </button>
 
