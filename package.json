@@ -1,12 +1,8 @@
 {
-  "name": "crypto-analyzer-suite",
+  "name": "crypto-frontend",
   "version": "1.2.0",
   "private": true,
-  "workspaces": [
-    "crypto-frontend"
-  ],
   "scripts": {
-    "build": "npm run build --workspace=crypto-frontend",
-    "lint": "npm run lint --workspace=crypto-frontend"
+    "build": "cd crypto-frontend && npm install && npm run build && node -e \"require('fs').cpSync('dist', '../dist', {recursive: true})\""
   }
 }
