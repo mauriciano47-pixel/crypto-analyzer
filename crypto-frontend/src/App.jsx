@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from './services/api';
+import { authService } from './services/authService';
 import { CryptoLiveStream } from './services/liveStream';
 import DataIngestion from './components/DataIngestion';
 import TradingChart from './components/TradingChart';
 import NewsColumn from './components/NewsColumn';
-import { Activity, PlusCircle, RefreshCw, Zap, TrendingUp } from 'lucide-react';
+import AuthScreen from './components/AuthScreen';
+import { Activity, PlusCircle, RefreshCw, Zap, TrendingUp, User, LogOut } from 'lucide-react';
 
 const calcularBacktestingPatrones = (patternsList, chartSerie) => {
   if (!patternsList || patternsList.length === 0 || !chartSerie || chartSerie.length === 0) {
@@ -79,6 +81,7 @@ const calcularBacktestingPatrones = (patternsList, chartSerie) => {
 };
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
   const [datasets, setDatasets] = useState([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState('LIVE_STREAM');
   const [isLoading, setIsLoading] = useState(true);
@@ -201,8 +204,10 @@ function App() {
   }, [fetchLiveNews]);
 
 
-  // Cargar al montar el componente
+  // Cargar al montar el componente (solo si hay sesión activa)
   useEffect(() => {
+    if (!currentUser) return;
+
     let isMounted = true;
 
     api.getDatasets()
@@ -252,7 +257,15 @@ function App() {
         liveStreamRef.current.disconnect();
       }
     };
-  }, [fetchLiveNews]);
+  }, [currentUser, fetchLiveNews]);
+
+  const handleLogout = () => {
+    authService.logout();
+    setCurrentUser(null);
+    if (liveStreamRef.current) {
+      liveStreamRef.current.disconnect();
+    }
+  };
 
   const handleDatasetCreated = (dataset) => {
     setDatasets(prev => [dataset, ...prev]);
@@ -335,6 +348,10 @@ function App() {
 
   const selectedDataset = datasets.find(d => String(d.id) === String(selectedDatasetId));
 
+  if (!currentUser) {
+    return <AuthScreen onAuthSuccess={(user) => setCurrentUser(user)} />;
+  }
+
   return (
     <div className="app-container">
       <main style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -384,7 +401,7 @@ function App() {
             })}
           </div>
 
-          {/* Menú de Datasets y Nuevo Análisis */}
+          {/* Menú de Datasets, Nuevo Análisis y Perfil de Usuario */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <select 
               value={selectedDatasetId || 'LIVE_STREAM'} 
@@ -426,6 +443,40 @@ function App() {
             <button className="btn" onClick={() => setSelectedDatasetId(null)} style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}>
               <PlusCircle size={15} /> Subir CSV / CCXT
             </button>
+
+            {/* Distintivo de Usuario Autenticado y Botón de Salir */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.35rem 0.65rem',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <User size={14} className="text-bullish" />
+              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#F1F5F9', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {currentUser.username}
+              </span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Cerrar Sesión"
+                aria-label="Cerrar Sesión"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px',
+                  marginLeft: '2px'
+                }}
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
           </div>
         </header>
 
