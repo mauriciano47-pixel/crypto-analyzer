@@ -21,7 +21,7 @@ export default function NewsColumn({
   priceChange24h = 0, 
   patterns = [], 
   chartData = [], 
-  onRefreshNews 
+  onRefreshNews
 }) {
   const [activeTab, setActiveTab] = useState('noticias'); // 'noticias' | 'sentimiento' | 'tecnico'
   const [filterSentiment, setFilterSentiment] = useState('todos'); // 'todos' | 'alcista' | 'bajista' | 'macro'
@@ -178,13 +178,13 @@ export default function NewsColumn({
         height: '100vh', 
         width: '360px',
         overflow: 'hidden',
-        background: 'rgba(15, 23, 42, 0.75)'
+        background: 'var(--glass-bg)'
       }}
     >
       {/* Encabezado del Panel */}
       <div style={{ 
         padding: '1.15rem 1.25rem 0.85rem 1.25rem', 
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         flexDirection: 'column',
         gap: '0.6rem'
@@ -192,7 +192,7 @@ export default function NewsColumn({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Newspaper size={18} className="text-bullish" />
-            <h2 style={{ fontSize: '1rem', fontWeight: '800', letterSpacing: '-0.01em', margin: 0 }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: '800', letterSpacing: '-0.01em', margin: 0, color: 'var(--heading-color)' }}>
               Inteligencia de Mercado
             </h2>
           </div>
@@ -203,11 +203,11 @@ export default function NewsColumn({
             title="Refrescar feeds y métricas"
             aria-label="Refrescar noticias"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-color)',
               borderRadius: '6px',
               padding: '5px',
-              color: '#94A3B8',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -219,10 +219,10 @@ export default function NewsColumn({
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94A3B8' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-            Feed Activo: <strong style={{ color: '#F8FAFC' }}>{cleanSym}</strong>
+            Feed Activo: <strong style={{ color: 'var(--text-primary)' }}>{cleanSym}</strong>
           </span>
           <span>Actualización continua</span>
         </div>
@@ -232,7 +232,7 @@ export default function NewsColumn({
           display: 'grid', 
           gridTemplateColumns: 'repeat(3, 1fr)', 
           gap: '4px',
-          backgroundColor: 'rgba(0, 0, 0, 0.3)',
+          backgroundColor: 'var(--bg-elevated)',
           padding: '3px',
           borderRadius: '8px'
         }}>
@@ -247,7 +247,7 @@ export default function NewsColumn({
               border: 'none',
               cursor: 'pointer',
               background: activeTab === 'noticias' ? 'var(--neon-green)' : 'transparent',
-              color: activeTab === 'noticias' ? '#000000' : '#94A3B8',
+              color: activeTab === 'noticias' ? '#000000' : 'var(--text-secondary)',
               transition: 'all 0.15s'
             }}
           >
@@ -264,7 +264,7 @@ export default function NewsColumn({
               border: 'none',
               cursor: 'pointer',
               background: activeTab === 'sentimiento' ? 'var(--neon-green)' : 'transparent',
-              color: activeTab === 'sentimiento' ? '#000000' : '#94A3B8',
+              color: activeTab === 'sentimiento' ? '#000000' : 'var(--text-secondary)',
               transition: 'all 0.15s'
             }}
           >
@@ -281,7 +281,7 @@ export default function NewsColumn({
               border: 'none',
               cursor: 'pointer',
               background: activeTab === 'tecnico' ? 'var(--neon-green)' : 'transparent',
-              color: activeTab === 'tecnico' ? '#000000' : '#94A3B8',
+              color: activeTab === 'tecnico' ? '#000000' : 'var(--text-secondary)',
               transition: 'all 0.15s'
             }}
           >
@@ -329,9 +329,9 @@ export default function NewsColumn({
                     fontWeight: '600',
                     borderRadius: '5px',
                     border: '1px solid',
-                    borderColor: filterSentiment === f.id ? 'var(--neon-green)' : 'rgba(255, 255, 255, 0.08)',
-                    background: filterSentiment === f.id ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                    color: filterSentiment === f.id ? '#10B981' : '#94A3B8',
+                    borderColor: filterSentiment === f.id ? 'var(--neon-green)' : 'var(--border-color)',
+                    background: filterSentiment === f.id ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-elevated)',
+                    color: filterSentiment === f.id ? '#10B981' : 'var(--text-secondary)',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap'
                   }}
@@ -344,7 +344,7 @@ export default function NewsColumn({
             {/* Listado de Noticias */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {filteredNews.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748B' }}>
+                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)' }}>
                   <Info size={28} style={{ margin: '0 auto 0.5rem auto', opacity: 0.5 }} />
                   <p style={{ fontSize: '0.825rem' }}>No se encontraron noticias con los filtros actuales.</p>
                 </div>
@@ -357,8 +357,8 @@ export default function NewsColumn({
                     <article 
                       key={item.id || i}
                       style={{ 
-                        background: 'rgba(30, 41, 59, 0.45)', 
-                        border: '1px solid rgba(255, 255, 255, 0.07)', 
+                        background: 'var(--bg-elevated)', 
+                        border: '1px solid var(--border-color)', 
                         borderRadius: '10px', 
                         padding: '0.85rem',
                         display: 'flex',
@@ -404,7 +404,7 @@ export default function NewsColumn({
                         fontSize: '0.85rem', 
                         fontWeight: '700', 
                         lineHeight: 1.35, 
-                        color: '#F8FAFC',
+                        color: 'var(--text-primary)',
                         margin: 0
                       }}>
                         {item.titulo}
@@ -414,7 +414,7 @@ export default function NewsColumn({
                       <p style={{ 
                         fontSize: '0.775rem', 
                         lineHeight: 1.45, 
-                        color: '#94A3B8', 
+                        color: 'var(--text-secondary)', 
                         margin: 0 
                       }}>
                         {item.resumen}
@@ -461,8 +461,8 @@ export default function NewsColumn({
             
             {/* Widget Fear & Greed */}
             <div style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
-              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              background: 'var(--bg-elevated)', 
+              border: '1px solid var(--border-color)', 
               borderRadius: '12px', 
               padding: '1.25rem',
               display: 'flex',
@@ -470,17 +470,17 @@ export default function NewsColumn({
               gap: '0.85rem'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <Gauge size={16} className="text-bullish" /> ÍNDICE MIEDO Y CODICIA
                 </span>
-                <span style={{ fontSize: '0.7rem', color: '#64748B' }}>Tiempo Real</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tiempo Real</span>
               </div>
 
               {/* Medidor Numérico Central */}
               <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
                 <div style={{ fontSize: '2.5rem', fontWeight: '900', color: fearAndGreed.color, lineHeight: 1 }}>
                   {fearAndGreed.score}
-                  <span style={{ fontSize: '1rem', color: '#64748B', fontWeight: '500' }}>/100</span>
+                  <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>/100</span>
                 </div>
                 <div style={{ fontSize: '0.95rem', fontWeight: '800', color: fearAndGreed.color, marginTop: '0.35rem' }}>
                   {fearAndGreed.label}
@@ -508,7 +508,7 @@ export default function NewsColumn({
                     boxShadow: '0 0 8px rgba(255, 255, 255, 0.8)'
                   }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#64748B', marginTop: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '6px' }}>
                   <span>0 (Miedo Extremo)</span>
                   <span>50</span>
                   <span>100 (Codicia)</span>
@@ -518,48 +518,48 @@ export default function NewsColumn({
               {/* Consejo Táctico */}
               <div style={{ 
                 padding: '0.6rem 0.8rem', 
-                background: 'rgba(255, 255, 255, 0.03)', 
+                background: 'var(--bg-surface)', 
                 borderRadius: '8px', 
-                border: '1px solid rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-color)',
                 fontSize: '0.75rem',
                 lineHeight: 1.45,
-                color: '#CBD5E1'
+                color: 'var(--text-secondary)'
               }}>
-                <strong style={{ color: '#F8FAFC' }}>Interpretación:</strong> {fearAndGreed.advice}
+                <strong style={{ color: 'var(--text-primary)' }}>Interpretación:</strong> {fearAndGreed.advice}
               </div>
             </div>
 
             {/* KPIs del Par Activo */}
             <div style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
-              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              background: 'var(--bg-elevated)', 
+              border: '1px solid var(--border-color)', 
               borderRadius: '12px', 
               padding: '1rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.75rem'
             }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Flame size={15} style={{ color: '#F59E0B' }} /> MÉTRICAS DE LIQUIDEZ ({cleanSym})
               </span>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                <div style={{ padding: '0.6rem', background: 'rgba(0, 0, 0, 0.25)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Variación 24h</div>
+                <div style={{ padding: '0.6rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Variación 24h</div>
                   <div style={{ fontSize: '1rem', fontWeight: '800', color: priceChange24h >= 0 ? '#10B981' : '#EF4444' }}>
                     {priceChange24h >= 0 ? `+${priceChange24h.toFixed(2)}%` : `${priceChange24h.toFixed(2)}%`}
                   </div>
                 </div>
 
-                <div style={{ padding: '0.6rem', background: 'rgba(0, 0, 0, 0.25)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Sesgo General</div>
+                <div style={{ padding: '0.6rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sesgo General</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: '800', color: priceChange24h >= 0 ? '#10B981' : '#EF4444' }}>
                     {priceChange24h >= 0 ? 'Fuerte Comprador' : 'Presión Vendedora'}
                   </div>
                 </div>
               </div>
 
-              <div style={{ fontSize: '0.725rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <CheckCircle2 size={13} style={{ color: '#10B981' }} />
                 <span>Binance WebSocket conectado sin cortes de transmisión.</span>
               </div>
@@ -576,8 +576,8 @@ export default function NewsColumn({
             
             {/* Widget RSI Wilder */}
             <div style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
-              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              background: 'var(--bg-elevated)', 
+              border: '1px solid var(--border-color)', 
               borderRadius: '12px', 
               padding: '1rem',
               display: 'flex',
@@ -585,7 +585,7 @@ export default function NewsColumn({
               gap: '0.75rem'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <BarChart2 size={16} className="text-bullish" /> OSCILADOR RSI WILDER (14)
                 </span>
                 <span style={{ fontSize: '0.75rem', fontWeight: '800', color: technicalSummary.rsiColor }}>
@@ -594,10 +594,10 @@ export default function NewsColumn({
               </div>
 
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                <span style={{ fontSize: '2rem', fontWeight: '900', color: '#F8FAFC' }}>
+                <span style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--text-primary)' }}>
                   {technicalSummary.rsi}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   {parseFloat(technicalSummary.rsi) > 50 ? 'Momento Alcista' : 'Momento Bajista'}
                 </span>
               </div>
@@ -607,7 +607,8 @@ export default function NewsColumn({
                 <div style={{ 
                   height: '6px', 
                   borderRadius: '3px', 
-                  background: 'rgba(255, 255, 255, 0.1)',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
                   position: 'relative'
                 }}>
                   {/* Zona Neutral */}
@@ -631,7 +632,7 @@ export default function NewsColumn({
                     boxShadow: `0 0 8px ${technicalSummary.rsiColor}`
                   }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#64748B', marginTop: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   <span>0 (Sobreventa &lt; 30)</span>
                   <span>50</span>
                   <span>100 (Sobrecompra &gt; 70)</span>
@@ -641,67 +642,67 @@ export default function NewsColumn({
 
             {/* Medias Móviles */}
             <div style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
-              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              background: 'var(--bg-elevated)', 
+              border: '1px solid var(--border-color)', 
               borderRadius: '12px', 
               padding: '1rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.65rem'
             }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Activity size={15} style={{ color: '#3B82F6' }} /> MEDIAS MÓVILES (SMA)
               </span>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0.6rem', background: 'rgba(0, 0, 0, 0.25)', borderRadius: '6px' }}>
-                  <span style={{ color: '#94A3B8' }}>SMA 20 (Corto plazo):</span>
-                  <strong style={{ color: '#F8FAFC' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0.6rem', background: 'var(--bg-surface)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>SMA 20 (Corto plazo):</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>
                     {technicalSummary.sma20 ? `$${parseFloat(technicalSummary.sma20).toLocaleString('en-US')}` : 'Calculando...'}
                   </strong>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0.6rem', background: 'rgba(0, 0, 0, 0.25)', borderRadius: '6px' }}>
-                  <span style={{ color: '#94A3B8' }}>SMA 50 (Mediano plazo):</span>
-                  <strong style={{ color: '#F8FAFC' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0.6rem', background: 'var(--bg-surface)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>SMA 50 (Mediano plazo):</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>
                     {technicalSummary.sma50 ? `$${parseFloat(technicalSummary.sma50).toLocaleString('en-US')}` : 'Calculando...'}
                   </strong>
                 </div>
               </div>
 
-              <div style={{ fontSize: '0.75rem', color: '#CBD5E1', padding: '0.4rem 0' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', padding: '0.4rem 0' }}>
                 {technicalSummary.smaComparison}
               </div>
             </div>
 
             {/* Confluencia de Patrones */}
             <div style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
-              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              background: 'var(--bg-elevated)', 
+              border: '1px solid var(--border-color)', 
               borderRadius: '12px', 
               padding: '1rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.65rem'
             }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <TrendingUp size={15} className="text-bullish" /> PATRONES DE VELAS EN VENTANA
               </span>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.8rem', color: '#94A3B8' }}>Total Detectados:</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#F8FAFC' }}>{patterns.length}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Detectados:</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-primary)' }}>{patterns.length}</span>
               </div>
 
               {patterns.length > 0 ? (
-                <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   Último patrón escaneado: <strong style={{ color: '#10B981' }}>{patterns[0]?.patron || patterns[0]?.tipo_patron_display}</strong>
                   {typeof patterns[0]?.tasaAcierto === 'number' && (
                     <span> (Acierto: {patterns[0].tasaAcierto.toFixed(1)}%)</span>
                   )}
                 </div>
               ) : (
-                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   Escaneando serie temporal en busca de Doji, Martillo y Envolventes...
                 </div>
               )}

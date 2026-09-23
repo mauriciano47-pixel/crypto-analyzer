@@ -1,11 +1,16 @@
 :root {
+  /* Modo Oscuro Predeterminado (Cyber-Obsidian) */
   --bg-base: #0B0E14;
   --bg-surface: #151A22;
   --bg-elevated: #1F2633;
+  --bg-card: #151A22;
+  --bg-header: rgba(15, 23, 42, 0.7);
+  --bg-control: rgba(15, 23, 42, 0.65);
   
   --text-primary: #E2E8F0;
   --text-secondary: #94A3B8;
-  --text-muted: #475569;
+  --text-muted: #64748B;
+  --heading-color: #FFFFFF;
 
   --neon-green: #10B981;
   --neon-green-glow: rgba(16, 185, 129, 0.2);
@@ -16,11 +21,45 @@
   --accent-primary-hover: #2563EB;
   
   --border-color: #334155;
+  --border-subtle: rgba(255, 255, 255, 0.08);
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
   --border-radius-lg: 12px;
 
   --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --glass-bg: rgba(21, 26, 34, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Modo Claro Limpio y Elegante (Clean Light Trading) */
+[data-theme="light"], body.light-theme {
+  --bg-base: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --bg-card: #FFFFFF;
+  --bg-header: rgba(255, 255, 255, 0.85);
+  --bg-control: rgba(241, 245, 249, 0.9);
+  
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --heading-color: #0F172A;
+
+  --neon-green: #059669;
+  --neon-green-glow: rgba(5, 150, 105, 0.15);
+  --neon-red: #DC2626;
+  --neon-red-glow: rgba(220, 38, 38, 0.15);
+  
+  --accent-primary: #2563EB;
+  --accent-primary-hover: #1D4ED8;
+  
+  --border-color: #CBD5E1;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(203, 213, 225, 0.8);
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 * {
@@ -37,13 +76,15 @@ body {
   -webkit-font-smoothing: antialiased;
   height: 100vh;
   overflow: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .glass {
-  background: rgba(21, 26, 34, 0.7);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .app-container {
@@ -51,6 +92,7 @@ body {
   grid-template-columns: 1fr 340px;
   grid-template-rows: 100vh;
   width: 100vw;
+  background-color: var(--bg-base);
 }
 
 ::-webkit-scrollbar {
@@ -94,6 +136,7 @@ input, select, button {
 .btn-secondary {
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 .btn-secondary:hover {
   background: var(--border-color);
@@ -107,7 +150,7 @@ input, select, button {
   border-radius: var(--border-radius-md);
   width: 100%;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background-color 0.25s ease;
 }
 .input-field:focus {
   border-color: var(--accent-primary);
@@ -115,7 +158,7 @@ input, select, button {
 
 h1, h2, h3, h4 {
   font-weight: 600;
-  color: #fff;
+  color: var(--heading-color);
 }
 
 .text-bullish { color: var(--neon-green); }
@@ -127,6 +170,9 @@ h1, h2, h3, h4 {
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
   padding: 1.5rem;
+  box-shadow: var(--card-shadow);
+  color: var(--text-primary);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .pattern-card {
@@ -135,7 +181,7 @@ h1, h2, h3, h4 {
 .pattern-card:hover {
   transform: translateY(-2px);
   background-color: var(--bg-elevated) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 @keyframes pulse {
@@ -178,5 +224,3 @@ h1, h2, h3, h4 {
     gap: 0.75rem;
   }
 }
-
-

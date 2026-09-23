@@ -15,7 +15,8 @@ export default function TradingChart({
   isLiveStreaming = true,
   liveSymbol = 'BTC/USDT',
   liveTimeframe = '1m',
-  onTimeframeChange = null
+  onTimeframeChange = null,
+  theme = 'dark'
 }) {
   const chartContainerRef = useRef();
   const chartRef = useRef();
@@ -43,6 +44,7 @@ export default function TradingChart({
   const fibLinesRef = useRef([]);
   const pivotLinesRef = useRef([]);
   const tradeLinesRef = useRef([]);
+  const themeRef = useRef(theme);
   // Efecto de parpadeo de precio en tiempo real
   useEffect(() => {
     if (currentPrice !== null && prevPriceRef.current !== null && currentPrice !== prevPriceRef.current) {
@@ -112,39 +114,40 @@ export default function TradingChart({
     if (!chartContainerRef.current) return;
 
     const container = chartContainerRef.current;
+    const isLight = themeRef.current === 'light';
     const chart = createChart(container, {
       width: container.clientWidth,
       height: container.clientHeight || 400,
       layout: {
-        background: { type: 'solid', color: '#0B0E14' },
-        textColor: '#94A3B8',
+        background: { type: 'solid', color: isLight ? '#FFFFFF' : '#0B0E14' },
+        textColor: isLight ? '#475569' : '#94A3B8',
         fontSize: 12,
         fontFamily: 'Inter, sans-serif',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.015)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+        vertLines: { color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.015)' },
+        horzLines: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)' },
       },
       crosshair: {
         mode: 0,
         vertLine: {
-          color: 'rgba(148, 163, 184, 0.3)',
+          color: isLight ? 'rgba(100, 116, 139, 0.4)' : 'rgba(148, 163, 184, 0.3)',
           style: 3,
-          labelBackgroundColor: '#1E293B',
+          labelBackgroundColor: isLight ? '#E2E8F0' : '#1E293B',
         },
         horzLine: {
-          color: 'rgba(148, 163, 184, 0.3)',
+          color: isLight ? 'rgba(100, 116, 139, 0.4)' : 'rgba(148, 163, 184, 0.3)',
           style: 3,
-          labelBackgroundColor: '#1E293B',
+          labelBackgroundColor: isLight ? '#E2E8F0' : '#1E293B',
         },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
         timeVisible: true,
         secondsVisible: true,
       },
       rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
         autoScale: true,
       },
       watermark: {
@@ -152,7 +155,7 @@ export default function TradingChart({
         fontSize: 40,
         fontFamily: 'Inter, sans-serif',
         fontWeight: 'bold',
-        color: 'rgba(255, 255, 255, 0.03)',
+        color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.03)',
         text: liveSymbol || 'CRYPTO ANALYZER',
         horzAlign: 'center',
         vertAlign: 'center',
@@ -231,21 +234,21 @@ export default function TradingChart({
       width: rsiContainerRef.current.clientWidth,
       height: 110,
       layout: {
-        background: { type: 'solid', color: '#0B0E14' },
-        textColor: '#94A3B8',
+        background: { type: 'solid', color: isLight ? '#FFFFFF' : '#0B0E14' },
+        textColor: isLight ? '#475569' : '#94A3B8',
         fontSize: 10,
         fontFamily: 'Inter, sans-serif',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.015)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+        vertLines: { color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.015)' },
+        horzLines: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)' },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
         visible: false,
       },
       rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
       },
     });
     rsiChartRef.current = rsiChart;
@@ -314,6 +317,60 @@ export default function TradingChart({
       rsiSeriesRef.current = null;
     };
   }, [selectedDataset?.id, liveSymbol]);
+
+  // Sincronización dinámica de tema con Lightweight Charts
+  useEffect(() => {
+    themeRef.current = theme;
+    if (!chartRef.current || !rsiChartRef.current) return;
+    const isLight = theme === 'light';
+
+    chartRef.current.applyOptions({
+      layout: {
+        background: { type: 'solid', color: isLight ? '#FFFFFF' : '#0B0E14' },
+        textColor: isLight ? '#475569' : '#94A3B8',
+      },
+      grid: {
+        vertLines: { color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.015)' },
+        horzLines: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)' },
+      },
+      crosshair: {
+        vertLine: {
+          color: isLight ? 'rgba(100, 116, 139, 0.4)' : 'rgba(148, 163, 184, 0.3)',
+          labelBackgroundColor: isLight ? '#E2E8F0' : '#1E293B',
+        },
+        horzLine: {
+          color: isLight ? 'rgba(100, 116, 139, 0.4)' : 'rgba(148, 163, 184, 0.3)',
+          labelBackgroundColor: isLight ? '#E2E8F0' : '#1E293B',
+        },
+      },
+      timeScale: {
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+      },
+      rightPriceScale: {
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+      },
+      watermark: {
+        color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.03)',
+      },
+    });
+
+    rsiChartRef.current.applyOptions({
+      layout: {
+        background: { type: 'solid', color: isLight ? '#FFFFFF' : '#0B0E14' },
+        textColor: isLight ? '#475569' : '#94A3B8',
+      },
+      grid: {
+        vertLines: { color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.015)' },
+        horzLines: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)' },
+      },
+      timeScale: {
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+      },
+      rightPriceScale: {
+        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+      },
+    });
+  }, [theme]);
 
   useEffect(() => {
     dataRef.current = data;
@@ -713,7 +770,7 @@ export default function TradingChart({
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#F8FAFC' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
                 {liveSymbol}
               </h2>
               {isLiveStreaming && (
@@ -738,8 +795,8 @@ export default function TradingChart({
                       borderRadius: '4px',
                       border: 'none',
                       cursor: 'pointer',
-                      background: liveTimeframe === tf ? 'var(--neon-blue)' : 'rgba(255, 255, 255, 0.05)',
-                      color: liveTimeframe === tf ? '#FFFFFF' : '#94A3B8',
+                      background: liveTimeframe === tf ? 'var(--neon-green)' : 'var(--bg-elevated)',
+                      color: liveTimeframe === tf ? '#000000' : 'var(--text-secondary)',
                       transition: 'all 0.2s'
                     }}
                   >
@@ -759,6 +816,7 @@ export default function TradingChart({
             showPivot={showPivot}
             setShowPivot={setShowPivot}
             openRiskModal={() => setRiskModalOpen(true)}
+            theme={theme}
           />
 
           {/* Badge de Precio en Tiempo Real con Flash Reactivo */}
@@ -773,18 +831,18 @@ export default function TradingChart({
                 ? 'rgba(16, 185, 129, 0.2)' 
                 : priceFlash === 'bearish' 
                   ? 'rgba(239, 68, 68, 0.2)' 
-                  : 'rgba(255, 255, 255, 0.03)',
+                  : 'var(--bg-elevated)',
               border: `1px solid ${
                 priceFlash === 'bullish' 
                   ? 'rgba(16, 185, 129, 0.5)' 
                   : priceFlash === 'bearish' 
                     ? 'rgba(239, 68, 68, 0.5)' 
-                    : 'rgba(255, 255, 255, 0.08)'
+                    : 'var(--border-color)'
               }`,
               transition: 'background-color 0.2s, border-color 0.2s'
             }}
           >
-            <span style={{ fontSize: '1.5rem', fontWeight: '800', fontFamily: 'monospace', color: priceFlash === 'bullish' ? '#10B981' : priceFlash === 'bearish' ? '#EF4444' : '#F8FAFC' }}>
+            <span style={{ fontSize: '1.5rem', fontWeight: '800', fontFamily: 'monospace', color: priceFlash === 'bullish' ? '#10B981' : priceFlash === 'bearish' ? '#EF4444' : 'var(--text-primary)' }}>
               ${displayPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
             </span>
             <span style={{ fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', color: isPositiveChange ? '#10B981' : '#EF4444' }}>
@@ -795,11 +853,11 @@ export default function TradingChart({
         </div>
         
         {/* Barra de Controles de Zoom y Desplazamiento */}
-        <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'rgba(15, 23, 42, 0.6)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+        <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-elevated)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
           <button 
             onClick={handleScrollLeft} 
             title="Desplazarse al Pasado"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ChevronLeft size={18} />
           </button>
@@ -807,7 +865,7 @@ export default function TradingChart({
           <button 
             onClick={handleZoomOut} 
             title="Alejar (Zoom Out)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ZoomOut size={18} />
           </button>
@@ -815,7 +873,7 @@ export default function TradingChart({
           <button 
             onClick={handleReset} 
             title="Ajustar Todo (Fit Content)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <Maximize2 size={18} />
           </button>
@@ -823,7 +881,7 @@ export default function TradingChart({
           <button 
             onClick={handleZoomIn} 
             title="Acercar (Zoom In)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ZoomIn size={18} />
           </button>
@@ -831,7 +889,7 @@ export default function TradingChart({
           <button 
             onClick={handleScrollRight} 
             title="Desplazarse al Futuro"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ChevronRight size={18} />
           </button>

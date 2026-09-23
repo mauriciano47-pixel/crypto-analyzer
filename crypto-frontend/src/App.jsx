@@ -6,7 +6,7 @@ import DataIngestion from './components/DataIngestion';
 import TradingChart from './components/TradingChart';
 import NewsColumn from './components/NewsColumn';
 import AuthScreen from './components/AuthScreen';
-import { PlusCircle, RefreshCw, CandlestickChart, TrendingUp, User, LogOut } from 'lucide-react';
+import { PlusCircle, RefreshCw, CandlestickChart, TrendingUp, User, LogOut, Sun, Moon } from 'lucide-react';
 
 const calcularBacktestingPatrones = (patternsList, chartSerie) => {
   if (!patternsList || patternsList.length === 0 || !chartSerie || chartSerie.length === 0) {
@@ -82,6 +82,34 @@ const calcularBacktestingPatrones = (patternsList, chartSerie) => {
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('crypto_analyzer_theme') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crypto_analyzer_theme', theme);
+    } catch (e) {
+      console.warn('Error guardando preferencia de tema:', e);
+    }
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+      document.body.classList.remove('dark-theme');
+    } else {
+      document.body.classList.add('dark-theme');
+      document.body.classList.remove('light-theme');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
+
   const [datasets, setDatasets] = useState([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState('LIVE_STREAM');
   const [isLoading, setIsLoading] = useState(true);
@@ -400,7 +428,7 @@ function App() {
   const selectedDataset = datasets.find(d => String(d.id) === String(selectedDatasetId));
 
   if (!currentUser) {
-    return <AuthScreen onAuthSuccess={(user) => setCurrentUser(user)} />;
+    return <AuthScreen onAuthSuccess={(user) => setCurrentUser(user)} theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   return (
@@ -528,6 +556,31 @@ function App() {
                 <LogOut size={14} />
               </button>
             </div>
+
+            {/* Selector de Modo Claro / Modo Oscuro */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={theme === 'light' ? 'Cambiar a Modo Oscuro' : 'Cambiar a Modo Claro'}
+              aria-label={theme === 'light' ? 'Cambiar a Modo Oscuro' : 'Cambiar a Modo Claro'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.4rem 0.65rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-elevated)',
+                color: theme === 'light' ? '#D97706' : '#FBBF24',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontSize: '0.8rem',
+                fontWeight: '600'
+              }}
+            >
+              {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+              <span style={{ fontSize: '0.75rem' }}>{theme === 'light' ? 'Oscuro' : 'Claro'}</span>
+            </button>
           </div>
         </header>
 
@@ -576,6 +629,7 @@ function App() {
                 onTimeframeChange={(newTf) => {
                   startLiveStream(liveSymbol, newTf);
                 }}
+                theme={theme}
               />
 
               {/* Panel de Patrones Detectados con Backtesting Cuantitativo */}

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { CandlestickChart, TrendingUp, User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { CandlestickChart, TrendingUp, User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { authService } from '../services/authService';
 
-export default function AuthScreen({ onAuthSuccess }) {
+export default function AuthScreen({ onAuthSuccess, theme = 'dark', onToggleTheme = null }) {
   const [isRegistering, setIsRegistering] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -43,7 +43,9 @@ export default function AuthScreen({ onAuthSuccess }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.08) 0%, rgba(11, 14, 20, 1) 70%)',
+      background: theme === 'light'
+        ? 'radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, rgba(241, 245, 249, 1) 70%)'
+        : 'radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.08) 0%, rgba(11, 14, 20, 1) 70%)',
       padding: '1.5rem',
       boxSizing: 'border-box'
     }}>
@@ -54,14 +56,41 @@ export default function AuthScreen({ onAuthSuccess }) {
           width: '100%',
           padding: '2.25rem 2rem',
           borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+          border: '1px solid var(--border-color)',
+          boxShadow: 'var(--card-shadow)',
           display: 'flex',
           flexDirection: 'column',
           gap: '1.5rem',
           position: 'relative'
         }}
       >
+        {/* Botón de Alternancia de Tema en Esquina Superior */}
+        {onToggleTheme && (
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            title={theme === 'light' ? 'Cambiar a Modo Oscuro' : 'Cambiar a Modo Claro'}
+            aria-label="Alternar tema claro u oscuro"
+            style={{
+              position: 'absolute',
+              top: '1.25rem',
+              right: '1.25rem',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '6px',
+              color: theme === 'light' ? '#D97706' : '#FBBF24',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s'
+            }}
+          >
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+        )}
+
         {/* Encabezado con Logotipo */}
         <div style={{ textAlign: 'center' }}>
           <div style={{
@@ -79,7 +108,7 @@ export default function AuthScreen({ onAuthSuccess }) {
             <CandlestickChart size={32} className="text-bullish" />
           </div>
 
-          <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', margin: '0 0 0.4rem 0' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', margin: '0 0 0.4rem 0', color: 'var(--heading-color)' }}>
             Crypto Pattern Analyzer
           </h1>
           <p className="text-muted" style={{ fontSize: '0.825rem', margin: 0 }}>
@@ -90,10 +119,10 @@ export default function AuthScreen({ onAuthSuccess }) {
         {/* Selector de Pestañas: Registro / Iniciar Sesión */}
         <div style={{
           display: 'flex',
-          backgroundColor: 'rgba(15, 23, 42, 0.8)',
+          backgroundColor: 'var(--bg-elevated)',
           borderRadius: '10px',
           padding: '4px',
-          border: '1px solid rgba(255, 255, 255, 0.08)'
+          border: '1px solid var(--border-color)'
         }}>
           <button
             type="button"
@@ -111,7 +140,7 @@ export default function AuthScreen({ onAuthSuccess }) {
               fontSize: '0.85rem',
               transition: 'all 0.2s',
               backgroundColor: isRegistering ? 'var(--neon-green)' : 'transparent',
-              color: isRegistering ? '#000000' : '#94A3B8'
+              color: isRegistering ? '#000000' : 'var(--text-secondary)'
             }}
           >
             Registrarse
@@ -132,7 +161,7 @@ export default function AuthScreen({ onAuthSuccess }) {
               fontSize: '0.85rem',
               transition: 'all 0.2s',
               backgroundColor: !isRegistering ? 'var(--neon-green)' : 'transparent',
-              color: !isRegistering ? '#000000' : '#94A3B8'
+              color: !isRegistering ? '#000000' : 'var(--text-secondary)'
             }}
           >
             Iniciar Sesión
