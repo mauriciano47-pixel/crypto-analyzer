@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-
+import { calculateEMA, calculateBollingerBands, calculateFibonacciLevels, calculatePivotPoints } from '../services/indicators';
+import TechnicalToolbar from './TechnicalToolbar';
+import RiskCalculatorModal from './RiskCalculatorModal';
 export default function TradingChart({ 
   data, 
   patterns, 
@@ -28,7 +30,19 @@ export default function TradingChart({
   const dataRef = useRef(data);
   const [priceFlash, setPriceFlash] = useState(null);
   const prevPriceRef = useRef(currentPrice);
-
+  // Nuevos estados y referencias para indicadores técnicos
+  const [showEMA20, setShowEMA20] = useState(false);
+  const [showBollinger, setShowBollinger] = useState(false);
+  const [showFibonacci, setShowFibonacci] = useState(false);
+  const [showPivot, setShowPivot] = useState(false);
+  const [riskModalOpen, setRiskModalOpen] = useState(false);
+  const [hasActiveTradeLines, setHasActiveTradeLines] = useState(false);
+  const ema20SeriesRef = useRef();
+  const bollUpperSeriesRef = useRef();
+  const bollLowerSeriesRef = useRef();
+  const fibLinesRef = useRef([]);
+  const pivotLinesRef = useRef([]);
+  const tradeLinesRef = useRef([]);
   // Efecto de parpadeo de precio en tiempo real
   useEffect(() => {
     if (currentPrice !== null && prevPriceRef.current !== null && currentPrice !== prevPriceRef.current) {
@@ -191,6 +205,26 @@ export default function TradingChart({
       title: 'SMA 50',
     });
     sma50SeriesRef.current = sma50Series;
+    // Serie de EMA 20
+    const ema20Series = chart.addSeries(LineSeries, {
+      color: '#1E3A8A', // azul oscuro
+      lineWidth: 2,
+      title: 'EMA 20',
+    });
+    ema20SeriesRef.current = ema20Series;
+    // Series para Bandas de Bollinger (upper y lower)
+    const bollUpperSeries = chart.addSeries(LineSeries, {
+      color: '#F97316', // naranja
+      lineWidth: 1,
+      title: 'Boll Upper',
+    });
+    const bollLowerSeries = chart.addSeries(LineSeries, {
+      color: '#F97316', // naranja
+      lineWidth: 1,
+      title: 'Boll Lower',
+    });
+    bollUpperSeriesRef.current = bollUpperSeries;
+    bollLowerSeriesRef.current = bollLowerSeries;
 
     // Gráfico de RSI
     const rsiChart = createChart(rsiContainerRef.current, {
@@ -270,6 +304,12 @@ export default function TradingChart({
       candlestickSeriesRef.current = null;
       sma20SeriesRef.current = null;
       sma50SeriesRef.current = null;
+      ema20SeriesRef.current = null;
+      bollUpperSeriesRef.current = null;
+      bollLowerSeriesRef.current = null;
+      fibLinesRef.current = [];
+      pivotLinesRef.current = [];
+      tradeLinesRef.current = [];
       rsiChartRef.current = null;
       rsiSeriesRef.current = null;
     };
@@ -405,6 +445,130 @@ export default function TradingChart({
   }, [liveTick]);
 
   // Actualizar marcadores de patrones
+
+  // Efecto para actualizar EMA 20 cuando está activo
+  useEffect(() => {
+    if (!ema20SeriesRef.current) return;
+    if (showEMA20) {
+      const closes = data.map(d => parseFloat(d.close));
+      const emaValues = calculateEMA(closes, 20);
+      const emaData = emaValues.map((v, i) => ({
+        time: typeof data[i].time === 'number' ? data[i].time : Math.floor(new Date(data[i].fecha).getTime() / 1000),
+        value: v,
+      }));
+      ema20SeriesRef.current.setData(emaData);
+      ema20SeriesRef.current.applyOptions({ visible: true });
+    } else {
+      ema20SeriesRef.current.applyOptions({ visible: false });
+    }
+  }, [showEMA20, data]);
+
+  // Efecto para actualizar Bandas de Bollinger cuando está activo
+  useEffect(() => {
+    if (!bollUpperSeriesRef.current || !bollLowerSeriesRef.current) return;
+    if (showBollinger) {
+      const closes = data.map(d => parseFloat(d.close));
+      const { upper, lower } = calculateBollingerBands(closes);
+      const upperData = upper.map((v, i) => ({
+        time: typeof data[i].time === 'number' ? data[i].time : Math.floor(new Date(data[i].fecha).getTime() / 1000),
+        value: v,
+      }));
+      const lowerData = lower.map((v, i) => ({
+        time: typeof data[i].time === 'number' ? data[i].time : Math.floor(new Date(data[i].fecha).getTime() / 1000),
+        value: v,
+      }));
+      bollUpperSeriesRef.current.setData(upperData);
+      bollLowerSeriesRef.current.setData(lowerData);
+      bollUpperSeriesRef.current.applyOptions({ visible: true });
+      bollLowerSeriesRef.current.applyOptions({ visible: true });
+    } else {
+      bollUpperSeriesRef.current.applyOptions({ visible: false });
+      bollLowerSeriesRef.current.applyOptions({ visible: false });
+    }
+  }, [showBollinger, data]);
+
+  // Efecto para dibujar niveles de Fibonacci
+  useEffect(() => {
+    // Limpiar líneas previas
+    fibLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
+    fibLinesRef.current = [];
+    if (!showFibonacci) return;
+    const highs = data.map(d => parseFloat(d.high));
+    const lows = data.map(d => parseFloat(d.low));
+    const high = Math.max(...highs);
+    const low = Math.min(...lows);
+    const levels = calculateFibonacciLevels(high, low);
+    levels.forEach(lvl => {
+      const line = candlestickSeriesRef.current.createPriceLine({
+        price: lvl.price,
+        color: lvl.color,
+        lineWidth: 1,
+        title: lvl.label,
+      });
+      fibLinesRef.current.push(line);
+    });
+  }, [showFibonacci, data]);
+
+  // Efecto para dibujar puntos de pivote
+  useEffect(() => {
+    pivotLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
+    pivotLinesRef.current = [];
+    if (!showPivot) return;
+    const highs = data.map(d => parseFloat(d.high));
+    const lows = data.map(d => parseFloat(d.low));
+    const closes = data.map(d => parseFloat(d.close));
+    const high = Math.max(...highs);
+    const low = Math.min(...lows);
+    const close = closes[closes.length - 1];
+    const { pivot, r1, s1, r2, s2 } = calculatePivotPoints(high, low, close);
+    const points = [
+      { price: pivot, label: 'P', color: '#FFC107' },
+      { price: r1, label: 'R1', color: '#10B981' },
+      { price: s1, label: 'S1', color: '#EF4444' },
+      { price: r2, label: 'R2', color: '#10B981' },
+      { price: s2, label: 'S2', color: '#EF4444' },
+    ];
+    points.forEach(p => {
+      const line = candlestickSeriesRef.current.createPriceLine({
+        price: p.price,
+        color: p.color,
+        lineWidth: 1,
+        title: p.label,
+      });
+      pivotLinesRef.current.push(line);
+    });
+  }, [showPivot, data]);
+
+  // Handlers para trazar y limpiar niveles de trade desde el modal
+  const handlePlotTradeLevels = (levels) => {
+    const { entry, stopLoss, takeProfit, isLong } = levels;
+    const entryLine = candlestickSeriesRef.current.createPriceLine({
+      price: entry,
+      color: isLong ? '#10B981' : '#EF4444',
+      lineWidth: 2,
+      title: 'Entrada',
+    });
+    const slLine = candlestickSeriesRef.current.createPriceLine({
+      price: stopLoss,
+      color: '#EF4444',
+      lineWidth: 1,
+      title: 'Stop Loss',
+    });
+    const tpLine = candlestickSeriesRef.current.createPriceLine({
+      price: takeProfit,
+      color: '#10B981',
+      lineWidth: 1,
+      title: 'Take Profit',
+    });
+    tradeLinesRef.current = [entryLine, slLine, tpLine];
+    setHasActiveTradeLines(true);
+  };
+
+  const handleClearTradeLevels = () => {
+    tradeLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
+    tradeLinesRef.current = [];
+    setHasActiveTradeLines(false);
+  };
   useEffect(() => {
     if (!candlestickSeriesRef.current) return;
 
@@ -585,6 +749,17 @@ export default function TradingChart({
               </div>
             )}
           </div>
+          <TechnicalToolbar
+            showEMA20={showEMA20}
+            setShowEMA20={setShowEMA20}
+            showBollinger={showBollinger}
+            setShowBollinger={setShowBollinger}
+            showFibonacci={showFibonacci}
+            setShowFibonacci={setShowFibonacci}
+            showPivot={showPivot}
+            setShowPivot={setShowPivot}
+            openRiskModal={() => setRiskModalOpen(true)}
+          />
 
           {/* Badge de Precio en Tiempo Real con Flash Reactivo */}
           <div 
@@ -687,6 +862,19 @@ export default function TradingChart({
           />
         </div>
       </div>
+
+      {/* Modal de Cálculo Cuantitativo de Riesgo */}
+      {riskModalOpen && (
+        <RiskCalculatorModal
+          isOpen={riskModalOpen}
+          onClose={() => setRiskModalOpen(false)}
+          currentPrice={displayPrice}
+          liveSymbol={liveSymbol}
+          onPlotTradeLevels={handlePlotTradeLevels}
+          onClearTradeLevels={handleClearTradeLevels}
+          hasActivePlots={hasActiveTradeLines}
+        />
+      )}
     </div>
   );
 }

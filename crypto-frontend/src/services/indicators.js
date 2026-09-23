@@ -172,3 +172,72 @@ export function detectCandlestickPatterns(candles) {
 
   return patterns;
 }
+
+/**
+ * Bandas de Bollinger (BB): Banda Superior, Media (SMA) e Inferior
+ * @param {Array<number>} closes - Precios de cierre
+ * @param {number} period - Período (default: 20)
+ * @param {number} stdDevMultiplier - Multiplicador de desviación estándar (default: 2)
+ */
+export function calculateBollingerBands(closes, period = 20, stdDevMultiplier = 2) {
+  if (!closes || closes.length < period) {
+    return {
+      upper: new Array(closes ? closes.length : 0).fill(null),
+      middle: new Array(closes ? closes.length : 0).fill(null),
+      lower: new Array(closes ? closes.length : 0).fill(null)
+    };
+  }
+
+  const upper = new Array(closes.length).fill(null);
+  const middle = new Array(closes.length).fill(null);
+  const lower = new Array(closes.length).fill(null);
+
+  for (let i = period - 1; i < closes.length; i++) {
+    const slice = closes.slice(i - period + 1, i + 1);
+    const mean = slice.reduce((acc, val) => acc + val, 0) / period;
+    const variance = slice.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / period;
+    const stdDev = Math.sqrt(variance);
+
+    middle[i] = mean;
+    upper[i] = mean + (stdDevMultiplier * stdDev);
+    lower[i] = mean - (stdDevMultiplier * stdDev);
+  }
+
+  return { upper, middle, lower };
+}
+
+/**
+ * Niveles Clásicos de Retroceso de Fibonacci
+ * @param {number} high - Máximo del rango (Swing High)
+ * @param {number} low - Mínimo del rango (Swing Low)
+ */
+export function calculateFibonacciLevels(high, low) {
+  const diff = high - low;
+  if (diff <= 0) return [];
+
+  return [
+    { label: '0.0% (Alto)', ratio: 0.0, price: high, color: '#94A3B8' },
+    { label: '23.6%', ratio: 0.236, price: high - (0.236 * diff), color: '#38BDF8' },
+    { label: '38.2%', ratio: 0.382, price: high - (0.382 * diff), color: '#34D399' },
+    { label: '50.0% (Equilibrio)', ratio: 0.50, price: high - (0.50 * diff), color: '#FBBF24' },
+    { label: '61.8% (Aureo)', ratio: 0.618, price: high - (0.618 * diff), color: '#F472B6' },
+    { label: '78.6%', ratio: 0.786, price: high - (0.786 * diff), color: '#C084FC' },
+    { label: '100.0% (Bajo)', ratio: 1.0, price: low, color: '#94A3B8' }
+  ];
+}
+
+/**
+ * Puntos Pivote Clásicos (Soporte & Resistencia de Floor Trader)
+ * @param {number} high - Precio máximo
+ * @param {number} low - Precio mínimo
+ * @param {number} close - Precio de cierre
+ */
+export function calculatePivotPoints(high, low, close) {
+  const pivot = (high + low + close) / 3;
+  const r1 = (2 * pivot) - low;
+  const s1 = (2 * pivot) - high;
+  const r2 = pivot + (high - low);
+  const s2 = pivot - (high - low);
+
+  return { pivot, r1, s1, r2, s2 };
+}
