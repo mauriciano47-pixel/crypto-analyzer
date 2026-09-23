@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from './services/api';
 import { authService } from './services/authService';
+import { syntheticTraderService } from './services/syntheticTraderService';
 import { CryptoLiveStream } from './services/liveStream';
 import DataIngestion from './components/DataIngestion';
 import TradingChart from './components/TradingChart';
 import NewsColumn from './components/NewsColumn';
 import AuthScreen from './components/AuthScreen';
-import { PlusCircle, RefreshCw, CandlestickChart, TrendingUp, User, LogOut, Sun, Moon } from 'lucide-react';
+import { PlusCircle, RefreshCw, CandlestickChart, TrendingUp, User, LogOut, Sun, Moon, Bot } from 'lucide-react';
 
 const calcularBacktestingPatrones = (patternsList, chartSerie) => {
   if (!patternsList || patternsList.length === 0 || !chartSerie || chartSerie.length === 0) {
@@ -146,6 +147,24 @@ function App() {
   const [chartData, setChartData] = useState([]);
   const [patterns, setPatterns] = useState([]);
   const [news, setNews] = useState([]);
+
+  // Niveles de trading externos y suscripción a trader simulado
+  const [externalTradeLevels, setExternalTradeLevels] = useState(null);
+  const [sideTab, setSideTab] = useState('noticias');
+  const [dailyTrader, setDailyTrader] = useState(() => syntheticTraderService.getTrader());
+
+  useEffect(() => {
+    const unsub = syntheticTraderService.subscribe((t) => {
+      if (t) setDailyTrader({ ...t });
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (typeof currentPrice === 'number' && currentPrice > 0) {
+      syntheticTraderService.updateMarketPrice(liveSymbol, currentPrice);
+    }
+  }, [currentPrice, liveSymbol]);
 
   const liveStreamRef = useRef(null);
 
@@ -541,6 +560,48 @@ function App() {
               <PlusCircle size={15} /> Subir CSV / CCXT
             </button>
 
+            {/* Badge del Trader del Día (Comunidad Cuantitativa IA) */}
+            {dailyTrader && (
+              <button
+                type="button"
+                onClick={() => setSideTab('traders')}
+                title="Ver Trader del Día y Retroalimentación Algorítmica"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '8px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  cursor: 'pointer',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.78rem',
+                  fontWeight: '700',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 0 10px rgba(16, 185, 129, 0.1)'
+                }}
+              >
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#10B981',
+                  boxShadow: '0 0 8px #10B981'
+                }} />
+                <Bot size={14} className="text-bullish" />
+                <span>{dailyTrader.profile.name.split(' ')[0]}</span>
+                {dailyTrader.activePosition && (
+                  <span style={{
+                    color: dailyTrader.activePosition.floatingPnL >= 0 ? '#10B981' : '#EF4444',
+                    fontWeight: '800'
+                  }}>
+                    {dailyTrader.activePosition.floatingPnL >= 0 ? '+' : ''}{dailyTrader.activePosition.floatingPnLPercent}%
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Distintivo de Usuario Autenticado y Botón de Salir */}
             <div style={{
               display: 'flex',
@@ -648,6 +709,7 @@ function App() {
                   startLiveStream(liveSymbol, newTf);
                 }}
                 theme={theme}
+                externalTradeLevels={externalTradeLevels}
               />
 
               {/* Panel de Patrones Detectados con Backtesting Cuantitativo */}
@@ -744,6 +806,9 @@ function App() {
         patterns={patterns}
         chartData={chartData}
         onRefreshNews={() => fetchLiveNews(liveSymbol)}
+        onPlotTradeLevels={(levels) => setExternalTradeLevels(levels)}
+        activeTab={sideTab}
+        onTabChange={setSideTab}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, CandlestickSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { calculateEMA, calculateBollingerBands, calculateFibonacciLevels, calculatePivotPoints } from '../services/indicators';
@@ -16,7 +16,8 @@ export default function TradingChart({
   liveSymbol = 'BTC/USDT',
   liveTimeframe = '1m',
   onTimeframeChange = null,
-  theme = 'dark'
+  theme = 'dark',
+  externalTradeLevels = null
 }) {
   const chartContainerRef = useRef();
   const chartRef = useRef();
@@ -596,36 +597,45 @@ export default function TradingChart({
     });
   }, [showPivot, data]);
 
-  // Handlers para trazar y limpiar niveles de trade desde el modal
-  const handlePlotTradeLevels = (levels) => {
-    const { entry, stopLoss, takeProfit, isLong } = levels;
+  // Handlers para trazar y limpiar niveles de trade (modal de riesgo o trader simulado)
+  const handleClearTradeLevels = useCallback(() => {
+    tradeLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
+    tradeLinesRef.current = [];
+    setHasActiveTradeLines(false);
+  }, []);
+
+  const handlePlotTradeLevels = useCallback((levels) => {
+    if (!candlestickSeriesRef.current || !levels) return;
+    handleClearTradeLevels();
+    const { entry, stopLoss, takeProfit, isLong, label } = levels;
     const entryLine = candlestickSeriesRef.current.createPriceLine({
       price: entry,
       color: isLong ? '#10B981' : '#EF4444',
       lineWidth: 2,
-      title: 'Entrada',
+      title: label ? `${label} Entrada` : 'Entrada',
     });
     const slLine = candlestickSeriesRef.current.createPriceLine({
       price: stopLoss,
       color: '#EF4444',
       lineWidth: 1,
-      title: 'Stop Loss',
+      title: label ? `${label} SL` : 'Stop Loss',
     });
     const tpLine = candlestickSeriesRef.current.createPriceLine({
       price: takeProfit,
       color: '#10B981',
       lineWidth: 1,
-      title: 'Take Profit',
+      title: label ? `${label} TP` : 'Take Profit',
     });
     tradeLinesRef.current = [entryLine, slLine, tpLine];
     setHasActiveTradeLines(true);
-  };
+  }, [handleClearTradeLevels]);
 
-  const handleClearTradeLevels = () => {
-    tradeLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
-    tradeLinesRef.current = [];
-    setHasActiveTradeLines(false);
-  };
+  // Escuchar niveles externos (ej. desde el trader diario simulado)
+  useEffect(() => {
+    if (externalTradeLevels && candlestickSeriesRef.current) {
+      handlePlotTradeLevels(externalTradeLevels);
+    }
+  }, [externalTradeLevels, handlePlotTradeLevels]);
   useEffect(() => {
     if (!candlestickSeriesRef.current) return;
 
