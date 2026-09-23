@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CandlestickChart, TrendingUp, User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { authService } from '../services/authService';
 
@@ -9,6 +9,23 @@ export default function AuthScreen({ onAuthSuccess, theme = 'dark', onToggleThem
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const svgIconData = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='16' fill='%23050811' stroke='%2310B981' stroke-width='2.5'/%3E%3Cline x1='8' y1='23' x2='56' y2='23' stroke='%231E293B' stroke-width='1.2' stroke-dasharray='3 3'/%3E%3Cline x1='8' y1='41' x2='56' y2='41' stroke='%231E293B' stroke-width='1.2' stroke-dasharray='3 3'/%3E%3Cline x1='17' y1='24' x2='17' y2='50' stroke='%233B82F6' stroke-width='3' stroke-linecap='round'/%3E%3Crect x='12.5' y='30' width='9' height='13' rx='2.5' fill='%233B82F6' stroke='%2360A5FA' stroke-width='1'/%3E%3Cline x1='32' y1='16' x2='32' y2='46' stroke='%2306B6D4' stroke-width='3' stroke-linecap='round'/%3E%3Crect x='27.5' y='22' width='9' height='16' rx='2.5' fill='%2306B6D4' stroke='%2367E8F9' stroke-width='1'/%3E%3Cline x1='47' y1='9' x2='47' y2='42' stroke='%2310B981' stroke-width='3.2' stroke-linecap='round'/%3E%3Crect x='42' y='14' width='10' height='20' rx='2.5' fill='%2310B981' stroke='%2334D399' stroke-width='1.2'/%3E%3Cpath d='M 43 9 L 51 9 L 51 17' fill='none' stroke='%2334D399' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='51' cy='9' r='3.5' fill='%2334D399'/%3E%3Ccircle cx='51' cy='9' r='1.8' fill='%23FFFFFF'/%3E%3C/svg%3E";
+
+      let link = document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'shortcut icon';
+        document.head.appendChild(link);
+      }
+      link.type = 'image/svg+xml';
+      link.href = svgIconData;
+    } catch (e) {
+      console.warn('Error inyectando favicon dinámico en AuthScreen:', e);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
