@@ -18,9 +18,14 @@ import {
   Crosshair,
   Award,
   Zap,
-  RotateCw
+  RotateCw,
+  ShieldCheck,
+  Cpu,
+  Layers,
+  Play
 } from 'lucide-react';
 import { syntheticTraderService } from '../services/syntheticTraderService';
+import { QuantAgentEngine } from '../services/quantAgentEngine';
 
 export default function NewsColumn({ 
   news = [], 
@@ -49,6 +54,9 @@ export default function NewsColumn({
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syntheticTrader, setSyntheticTrader] = useState(() => syntheticTraderService.getTrader());
+  const [agentAudit, setAgentAudit] = useState(() => QuantAgentEngine.getLatestAudit());
+  const [isRunningAudit, setIsRunningAudit] = useState(false);
+  const [traderSubTab, setTraderSubTab] = useState('agent'); // 'agent' | 'daily'
 
   useEffect(() => {
     const unsub = syntheticTraderService.subscribe((trader) => {
@@ -58,6 +66,35 @@ export default function NewsColumn({
     });
     return unsub;
   }, []);
+
+  // Sincronizar al trader con las velas históricas reales cuando estén disponibles
+  useEffect(() => {
+    if (chartData && chartData.length >= 30) {
+      syntheticTraderService.syncWithCandles(chartData, liveSymbol, currentPrice);
+    }
+  }, [chartData, liveSymbol, currentPrice]);
+
+  const handleRunAgentAudit = () => {
+    if (!chartData || chartData.length < 30) {
+      alert('Se requieren al menos 30 velas históricas para ejecutar la auditoría cuantitativa.');
+      return;
+    }
+    setIsRunningAudit(true);
+    setTimeout(() => {
+      try {
+        const result = QuantAgentEngine.runHistoricalAudit(chartData, liveSymbol, {
+          initialBalance: 10000,
+          riskPerTrade: 0.015,
+          maxHoldingBars: 35
+        });
+        setAgentAudit(result);
+      } catch (err) {
+        console.error('[QuantAgent] Error en auditoría cuantitativa:', err);
+      } finally {
+        setIsRunningAudit(false);
+      }
+    }, 250);
+  };
 
   const cleanSym = (liveSymbol || 'BTC').split('/')[0].toUpperCase();
 
@@ -767,327 +804,759 @@ export default function NewsColumn({
         {/* ========================================================
             PESTAÑA 4: TRADER DEL DÍA (SIMULADO) & FEEDBACK ALGORÍTMICO
             ======================================================== */}
+        {/* ========================================================
+            PESTAÑA 4: AGENTE CUÁNTICO IA & TRADER DEL DÍA (AUDITORÍA HISTÓRICA)
+            ======================================================== */}
         {activeTab === 'traders' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Header de la Comunidad Cuantitativa */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {/* Selector de Subpestañas Cuánticas */}
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              gap: '6px',
               backgroundColor: 'var(--bg-elevated)',
-              padding: '0.75rem',
+              padding: '4px',
               borderRadius: '10px',
               border: '1px solid var(--border-color)'
             }}>
-              <div>
-                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Bot size={16} className="text-bullish" /> Trader del Día (IA Simulado)
-                </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                  Generado diariamente para auditar y retroalimentar el sistema
-                </span>
-              </div>
               <button
                 type="button"
-                onClick={() => {
-                  syntheticTraderService.forceRotateTrader(liveSymbol, currentPrice);
-                }}
-                title="Generar otro perfil de trader ahora"
+                onClick={() => setTraderSubTab('agent')}
                 style={{
+                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 8px',
-                  fontSize: '0.7rem',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '6px 8px',
+                  fontSize: '0.74rem',
                   fontWeight: '700',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--glass-bg)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer'
+                  borderRadius: '7px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: traderSubTab === 'agent' ? 'rgba(16, 185, 129, 0.16)' : 'transparent',
+                  color: traderSubTab === 'agent' ? '#10B981' : 'var(--text-secondary)',
+                  transition: 'all 0.2s'
                 }}
               >
-                <RotateCw size={12} />
-                <span>Rotar</span>
+                <Cpu size={14} />
+                <span>Agente Cuántico</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTraderSubTab('daily')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '6px 8px',
+                  fontSize: '0.74rem',
+                  fontWeight: '700',
+                  borderRadius: '7px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: traderSubTab === 'daily' ? 'rgba(59, 130, 246, 0.16)' : 'transparent',
+                  color: traderSubTab === 'daily' ? '#3B82F6' : 'var(--text-secondary)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Bot size={14} />
+                <span>Trader del Día</span>
               </button>
             </div>
 
-            {syntheticTrader ? (
-              <>
-                {/* 1. Tarjeta de Perfil de Persona Natural */}
+            {/* VISTA 1: CONSOLA DEL AGENTE CUANTITATIVO AUTÓNOMO */}
+            {traderSubTab === 'agent' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                {/* Header de la Consola del Agente */}
                 <div style={{
-                  background: 'var(--bg-elevated)',
+                  backgroundColor: 'var(--bg-elevated)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '12px',
-                  padding: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                  boxShadow: 'var(--card-shadow)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {/* Avatar */}
-                    <div style={{
-                      width: '46px',
-                      height: '46px',
-                      borderRadius: '50%',
-                      background: `linear-gradient(135deg, ${syntheticTrader.profile.avatarColor}, #1E293B)`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#FFFFFF',
-                      fontWeight: '800',
-                      fontSize: '1rem',
-                      border: '2px solid rgba(255, 255, 255, 0.15)',
-                      boxShadow: `0 0 12px ${syntheticTrader.profile.avatarColor}40`
-                    }}>
-                      {syntheticTrader.profile.initials}
-                    </div>
-
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                          {syntheticTrader.profile.name}
-                        </h4>
-                        <span style={{
-                          fontSize: '0.65rem',
-                          padding: '2px 6px',
-                          borderRadius: '10px',
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10B981',
-                          fontWeight: '700',
-                          border: '1px solid rgba(16, 185, 129, 0.3)'
-                        }}>
-                          Verificado
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                        <span>@{syntheticTrader.profile.username}</span>
-                        <span>•</span>
-                        <MapPin size={11} />
-                        <span>{syntheticTrader.profile.city}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Biografía y Enfoque */}
-                  <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: 0 }}>
-                    {syntheticTrader.profile.bio}
-                  </p>
-
-                  {/* Métricas de Cartera */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: '6px',
-                    background: 'var(--glass-bg)',
-                    padding: '8px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    textAlign: 'center'
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Capital</div>
-                      <div style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                        ${syntheticTrader.currentBalance.toLocaleString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Tasa Acierto</div>
-                      <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#10B981' }}>
-                        {syntheticTrader.winRate}% 🎯
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Estrategia</div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {syntheticTrader.profile.strategy.split('&')[0]}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Tarjeta de Inversión Artificial Activa (Paper Trading en Vivo) */}
-                {syntheticTrader.activePosition && (
-                  <div style={{
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Zap size={14} style={{ color: '#F59E0B' }} /> OPERACIÓN EN CURSO
-                      </span>
-                      <span style={{
-                        fontSize: '0.7rem',
-                        fontWeight: '800',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: syntheticTrader.activePosition.type === 'LONG' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                        color: syntheticTrader.activePosition.type === 'LONG' ? '#10B981' : '#EF4444',
-                        border: `1px solid ${syntheticTrader.activePosition.type === 'LONG' ? '#10B981' : '#EF4444'}40`
-                      }}>
-                        {syntheticTrader.activePosition.type} {syntheticTrader.activePosition.symbol}
-                      </span>
-                    </div>
-
-                    {/* Precios y P&L Flotante en Tiempo Real */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--glass-bg)', padding: '0.65rem 0.85rem', borderRadius: '8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Precio Entrada:</div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                          ${syntheticTrader.activePosition.entryPrice.toLocaleString()}
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>P&L Flotante:</div>
-                        <div style={{
-                          fontSize: '0.95rem',
-                          fontWeight: '800',
-                          color: (syntheticTrader.activePosition.floatingPnL >= 0) ? '#10B981' : '#EF4444',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '2px',
-                          justifyContent: 'flex-end'
-                        }}>
-                          {syntheticTrader.activePosition.floatingPnL >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                          <span>{syntheticTrader.activePosition.floatingPnL >= 0 ? '+' : ''}${syntheticTrader.activePosition.floatingPnL.toFixed(2)}</span>
-                          <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>({syntheticTrader.activePosition.floatingPnLPercent}%)</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Rationale y Parámetros */}
-                    <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0, fontStyle: 'italic', lineHeight: 1.35 }}>
-                      "{syntheticTrader.activePosition.rationale}"
-                    </p>
-
-                    {/* Niveles TP / SL y Botón Proyectar */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                      <span>SL: <strong style={{ color: '#EF4444' }}>${syntheticTrader.activePosition.stopLoss.toLocaleString()}</strong></span>
-                      <span>TP: <strong style={{ color: '#10B981' }}>${syntheticTrader.activePosition.takeProfit.toLocaleString()}</strong></span>
-                      <span>R:R: <strong style={{ color: 'var(--text-primary)' }}>{syntheticTrader.activePosition.rrRatio}:1</strong></span>
-                    </div>
-
-                    {onPlotTradeLevels && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const pos = syntheticTrader.activePosition;
-                          onPlotTradeLevels({
-                            entry: pos.entryPrice,
-                            stopLoss: pos.stopLoss,
-                            takeProfit: pos.takeProfit,
-                            isLong: pos.type === 'LONG',
-                            label: `${syntheticTrader.profile.name.split(' ')[0]}`
-                          });
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '7px',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(16, 185, 129, 0.4)',
-                          background: 'rgba(16, 185, 129, 0.1)',
-                          color: '#10B981',
-                          fontWeight: '700',
-                          fontSize: '0.78rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <Crosshair size={14} />
-                        <span>Ver Niveles en Gráfico TradingView</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* 3. Retroalimentación para Crypto Pattern Analyzer */}
-                <div style={{
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '12px',
-                  padding: '1rem',
+                  padding: '0.85rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.65rem'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Award size={15} style={{ color: '#10B981' }} /> RETROALIMENTACIÓN PARA LA APP
-                    </span>
-                    <span style={{ color: '#F59E0B', fontSize: '0.85rem', letterSpacing: '2px' }}>
-                      {syntheticTrader.feedback.stars}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ShieldCheck size={16} className="text-bullish" />
+                      <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        Agente Cuantitativo Walk-Forward
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: '0.65rem',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      color: '#10B981',
+                      fontWeight: '700',
+                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                    }}>
+                      Activo ⚡
                     </span>
                   </div>
 
-                  <h5 style={{ margin: 0, fontSize: '0.825rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    {syntheticTrader.feedback.title}
-                  </h5>
-
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                    {syntheticTrader.feedback.comment}
+                  <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Audita la serie histórica de <strong>{cleanSym}/USDT</strong> mediante confluencia de Velas Japonesas, RSI Wilder (14), EMA 20 y Bandas de Bollinger (R:R &ge; 2.25:1).
                   </p>
 
-                  <div style={{ background: 'var(--glass-bg)', padding: '8px', borderRadius: '8px', borderLeft: '3px solid #3B82F6' }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: '700', color: '#60A5FA' }}>Sugerencia Algorítmica:</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {syntheticTrader.feedback.suggestion}
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    <span>Velas en memoria: <strong style={{ color: 'var(--text-primary)' }}>{chartData ? chartData.length : 0}</strong></span>
+                    <span>Riesgo máx: <strong style={{ color: '#10B981' }}>1.5% / trade</strong></span>
                   </div>
 
-                  <div style={{ fontSize: '0.7rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle2 size={12} />
-                    <span>Aporte al Modelo: {syntheticTrader.feedback.learningContribution}</span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRunAgentAudit}
+                    disabled={isRunningAudit || !chartData || chartData.length < 30}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      backgroundColor: isRunningAudit ? 'rgba(16, 185, 129, 0.05)' : 'rgba(16, 185, 129, 0.15)',
+                      color: '#10B981',
+                      fontWeight: '800',
+                      fontSize: '0.78rem',
+                      cursor: (isRunningAudit || !chartData || chartData.length < 30) ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s',
+                      opacity: (!chartData || chartData.length < 30) ? 0.6 : 1
+                    }}
+                  >
+                    {isRunningAudit ? (
+                      <>
+                        <RotateCw size={14} className="spin-slow" />
+                        <span>Ejecutando Backtesting Walk-Forward...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={14} />
+                        <span>🚀 Ejecutar Auditoría Histórica ({chartData ? chartData.length : 0} velas)</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                {/* 4. Feed de Actividad en Vivo ("En Movimiento") */}
-                <div style={{
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '12px',
-                  padding: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.65rem'
-                }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Activity size={14} className="text-bullish" /> PULSO EN VIVO (ACTIVIDAD RECIENTE)
-                  </span>
+                {/* Resultados de la Auditoría */}
+                {agentAudit && agentAudit.success ? (
+                  <>
+                    {/* Tarjeta de Métricas Globales */}
+                    <div style={{
+                      backgroundColor: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '0.85rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.65rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <BarChart2 size={14} style={{ color: '#10B981' }} /> RESULTADOS HISTÓRICOS AUDITADOS
+                        </span>
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: '800',
+                          padding: '2px 6px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                          color: '#60A5FA',
+                          border: '1px solid rgba(59, 130, 246, 0.3)'
+                        }}>
+                          {agentAudit.algorithmicRating}
+                        </span>
+                      </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {syntheticTrader.activityLog?.slice(0, 5).map((act, i) => (
-                      <div key={act.id || i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.73rem' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', marginTop: '5px', flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: '700' }}>
-                            <span>{act.action}</span>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                              {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                      {/* Cuadrícula de Métricas Clave */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '6px',
+                        backgroundColor: 'var(--glass-bg)',
+                        padding: '8px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        textAlign: 'center'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>Tasa Acierto</div>
+                          <div style={{
+                            fontSize: '0.85rem',
+                            fontWeight: '800',
+                            color: agentAudit.winRate >= 50 ? '#10B981' : '#EF4444'
+                          }}>
+                            {agentAudit.winRate}%
                           </div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', marginTop: '1px' }}>
-                            {act.detail}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>Profit Factor</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#60A5FA' }}>
+                            {agentAudit.profitFactor}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>P&amp;L Neto</div>
+                          <div style={{
+                            fontSize: '0.82rem',
+                            fontWeight: '800',
+                            color: agentAudit.netProfit >= 0 ? '#10B981' : '#EF4444'
+                          }}>
+                            {agentAudit.netProfit >= 0 ? '+' : ''}${agentAudit.netProfit}
                           </div>
                         </div>
                       </div>
-                    ))}
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.71rem',
+                        color: 'var(--text-secondary)',
+                        padding: '0 4px'
+                      }}>
+                        <span>Trades: <strong style={{ color: 'var(--text-primary)' }}>{agentAudit.totalTrades}</strong> (<strong style={{ color: '#10B981' }}>{agentAudit.winningTrades}W</strong> / <strong style={{ color: '#EF4444' }}>{agentAudit.losingTrades}L</strong>)</span>
+                        <span>Max Drawdown: <strong style={{ color: '#EF4444' }}>{agentAudit.maxDrawdownPercent}%</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Retroalimentación para el Cerebro Algorítmico */}
+                    <div style={{
+                      backgroundColor: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '0.85rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.55rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Award size={14} style={{ color: '#F59E0B' }} /> RETROALIMENTACIÓN PARA EL CEREBRO
+                        </span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                          {agentAudit.symbol}
+                        </span>
+                      </div>
+
+                      <h5 style={{ margin: 0, fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {agentAudit.feedbackReview.title}
+                      </h5>
+
+                      <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                        {agentAudit.feedbackReview.summary}
+                      </p>
+
+                      <div style={{
+                        backgroundColor: 'var(--glass-bg)',
+                        padding: '7px 9px',
+                        borderRadius: '8px',
+                        borderLeft: '3px solid #10B981'
+                      }}>
+                        <div style={{ fontSize: '0.66rem', fontWeight: '700', color: '#10B981' }}>Recomendación de Optimización:</div>
+                        <div style={{ fontSize: '0.71rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.35 }}>
+                          {agentAudit.feedbackReview.recommendation}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bitácora de Operaciones Auditadas con Proyección en Gráfico */}
+                    <div style={{
+                      backgroundColor: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '0.85rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.65rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Layers size={14} className="text-bullish" /> OPERACIONES AUDITADAS ({agentAudit.tradesList.length})
+                        </span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                          Walk-Forward R:R &ge; 2.25
+                        </span>
+                      </div>
+
+                      {agentAudit.tradesList.length === 0 ? (
+                        <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>
+                          No se detectaron confluencias de alto rigor estadístico en este rango de velas.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '340px', overflowY: 'auto', paddingRight: '2px' }}>
+                          {agentAudit.tradesList.map((t) => {
+                            const isWin = t.outcome === 'WIN';
+                            const isLong = t.type === 'LONG';
+                            return (
+                              <div
+                                key={t.id}
+                                style={{
+                                  backgroundColor: 'var(--glass-bg)',
+                                  border: `1px solid ${isWin ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                                  borderRadius: '8px',
+                                  padding: '8px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '5px'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <span style={{
+                                      fontSize: '0.66rem',
+                                      fontWeight: '800',
+                                      padding: '2px 5px',
+                                      borderRadius: '4px',
+                                      backgroundColor: isLong ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                      color: isLong ? '#10B981' : '#EF4444'
+                                    }}>
+                                      {t.type}
+                                    </span>
+                                    <span style={{
+                                      fontSize: '0.66rem',
+                                      fontWeight: '800',
+                                      padding: '2px 5px',
+                                      borderRadius: '4px',
+                                      backgroundColor: isWin ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                      color: isWin ? '#10B981' : '#EF4444'
+                                    }}>
+                                      {isWin ? 'WIN 🎯' : 'LOSS 🛑'}
+                                    </span>
+                                  </div>
+                                  <div style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: '800',
+                                    color: isWin ? '#10B981' : '#EF4444'
+                                  }}>
+                                    {t.pnlDollars >= 0 ? '+' : ''}${t.pnlDollars} ({t.pnlPercent}%)
+                                  </div>
+                                </div>
+
+                                {/* Confluencias Detectadas */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginTop: '2px' }}>
+                                  {t.reasons.map((r, ri) => (
+                                    <span
+                                      key={ri}
+                                      style={{
+                                        fontSize: '0.62rem',
+                                        backgroundColor: 'var(--bg-elevated)',
+                                        color: 'var(--text-secondary)',
+                                        padding: '1px 5px',
+                                        borderRadius: '4px',
+                                        border: '1px solid var(--border-color)'
+                                      }}
+                                    >
+                                      {r}
+                                    </span>
+                                  ))}
+                                </div>
+
+                                {/* Precios de Entrada, SL y TP */}
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  fontSize: '0.68rem',
+                                  color: 'var(--text-secondary)',
+                                  marginTop: '2px'
+                                }}>
+                                  <span>Entrada: <strong style={{ color: 'var(--text-primary)' }}>${t.entryPrice.toLocaleString()}</strong></span>
+                                  <span>SL: <strong style={{ color: '#EF4444' }}>${t.stopLoss.toLocaleString()}</strong></span>
+                                  <span>TP: <strong style={{ color: '#10B981' }}>${t.takeProfit.toLocaleString()}</strong></span>
+                                </div>
+
+                                {/* Botón Proyectar en Gráfico */}
+                                {onPlotTradeLevels && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onPlotTradeLevels({
+                                        entry: t.entryPrice,
+                                        stopLoss: t.stopLoss,
+                                        takeProfit: t.takeProfit,
+                                        isLong: t.type === 'LONG',
+                                        label: `Agente: ${t.type} (${t.outcome})`
+                                      });
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      padding: '4px',
+                                      marginTop: '3px',
+                                      borderRadius: '6px',
+                                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                                      color: '#10B981',
+                                      fontWeight: '700',
+                                      fontSize: '0.7rem',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <Crosshair size={12} />
+                                    <span>Ver Trade en Gráfico</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{
+                    backgroundColor: 'var(--bg-elevated)',
+                    border: '1px dashed var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '1.5rem 1rem',
+                    textAlign: 'center',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Cpu size={24} style={{ opacity: 0.5, color: '#10B981' }} />
+                    <span>Presiona <strong>"Ejecutar Auditoría Histórica"</strong> para analizar las {chartData ? chartData.length : 0} velas de {cleanSym} mediante confluencias técnicas.</span>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* VISTA 2: TRADER DEL DÍA (IA SIMULADO) */}
+            {traderSubTab === 'daily' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                {/* Header de la Comunidad Cuantitativa */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  backgroundColor: 'var(--bg-elevated)',
+                  padding: '0.75rem',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Bot size={16} className="text-bullish" /> Trader del Día (IA Simulado)
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Generado diariamente para auditar y retroalimentar el sistema
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      syntheticTraderService.forceRotateTrader(liveSymbol, currentPrice, chartData);
+                    }}
+                    title="Generar otro perfil de trader ahora"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 8px',
+                      fontSize: '0.7rem',
+                      fontWeight: '700',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--glass-bg)',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <RotateCw size={12} />
+                    <span>Rotar</span>
+                  </button>
                 </div>
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
-                Generando trader simulado del día...
+
+                {syntheticTrader ? (
+                  <>
+                    {/* 1. Tarjeta de Perfil de Persona Natural */}
+                    <div style={{
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      boxShadow: 'var(--card-shadow)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {/* Avatar */}
+                        <div style={{
+                          width: '46px',
+                          height: '46px',
+                          borderRadius: '50%',
+                          background: `linear-gradient(135deg, ${syntheticTrader.profile.avatarColor}, #1E293B)`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          fontWeight: '800',
+                          fontSize: '1rem',
+                          border: '2px solid rgba(255, 255, 255, 0.15)',
+                          boxShadow: `0 0 12px ${syntheticTrader.profile.avatarColor}40`
+                        }}>
+                          {syntheticTrader.profile.initials}
+                        </div>
+
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                              {syntheticTrader.profile.name}
+                            </h4>
+                            <span style={{
+                              fontSize: '0.65rem',
+                              padding: '2px 6px',
+                              borderRadius: '10px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10B981',
+                              fontWeight: '700',
+                              border: '1px solid rgba(16, 185, 129, 0.3)'
+                            }}>
+                              Verificado
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <span>@{syntheticTrader.profile.username}</span>
+                            <span>•</span>
+                            <MapPin size={11} />
+                            <span>{syntheticTrader.profile.city}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Biografía y Enfoque */}
+                      <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: 0 }}>
+                        {syntheticTrader.profile.bio}
+                      </p>
+
+                      {/* Métricas de Cartera */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '6px',
+                        background: 'var(--glass-bg)',
+                        padding: '8px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        textAlign: 'center'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Capital</div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            ${syntheticTrader.currentBalance.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Tasa Acierto</div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#10B981' }}>
+                            {syntheticTrader.winRate}% 🎯
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Estrategia</div>
+                          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {syntheticTrader.profile.strategy.split('&')[0]}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2. Tarjeta de Inversión Artificial Activa (Paper Trading en Vivo) */}
+                    {syntheticTrader.activePosition && (
+                      <div style={{
+                        background: 'var(--bg-elevated)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '12px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Zap size={14} style={{ color: '#F59E0B' }} /> OPERACIÓN EN CURSO
+                          </span>
+                          <span style={{
+                            fontSize: '0.7rem',
+                            fontWeight: '800',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: syntheticTrader.activePosition.type === 'LONG' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                            color: syntheticTrader.activePosition.type === 'LONG' ? '#10B981' : '#EF4444',
+                            border: `1px solid ${syntheticTrader.activePosition.type === 'LONG' ? '#10B981' : '#EF4444'}40`
+                          }}>
+                            {syntheticTrader.activePosition.type} {syntheticTrader.activePosition.symbol}
+                          </span>
+                        </div>
+
+                        {/* Precios y P&L Flotante en Tiempo Real */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--glass-bg)', padding: '0.65rem 0.85rem', borderRadius: '8px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Precio Entrada:</div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                              ${syntheticTrader.activePosition.entryPrice.toLocaleString()}
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>P&amp;L Flotante:</div>
+                            <div style={{
+                              fontSize: '0.95rem',
+                              fontWeight: '800',
+                              color: (syntheticTrader.activePosition.floatingPnL >= 0) ? '#10B981' : '#EF4444',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                              justifyContent: 'flex-end'
+                            }}>
+                              {syntheticTrader.activePosition.floatingPnL >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                              <span>{syntheticTrader.activePosition.floatingPnL >= 0 ? '+' : ''}${syntheticTrader.activePosition.floatingPnL.toFixed(2)}</span>
+                              <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>({syntheticTrader.activePosition.floatingPnLPercent}%)</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Rationale y Parámetros */}
+                        <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0, fontStyle: 'italic', lineHeight: 1.35 }}>
+                          "{syntheticTrader.activePosition.rationale}"
+                        </p>
+
+                        {/* Niveles TP / SL y Botón Proyectar */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          <span>SL: <strong style={{ color: '#EF4444' }}>${syntheticTrader.activePosition.stopLoss.toLocaleString()}</strong></span>
+                          <span>TP: <strong style={{ color: '#10B981' }}>${syntheticTrader.activePosition.takeProfit.toLocaleString()}</strong></span>
+                          <span>R:R: <strong style={{ color: 'var(--text-primary)' }}>{syntheticTrader.activePosition.rrRatio}:1</strong></span>
+                        </div>
+
+                        {onPlotTradeLevels && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const pos = syntheticTrader.activePosition;
+                              onPlotTradeLevels({
+                                entry: pos.entryPrice,
+                                stopLoss: pos.stopLoss,
+                                takeProfit: pos.takeProfit,
+                                isLong: pos.type === 'LONG',
+                                label: `${syntheticTrader.profile.name.split(' ')[0]}`
+                              });
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '7px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              background: 'rgba(16, 185, 129, 0.1)',
+                              color: '#10B981',
+                              fontWeight: '700',
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <Crosshair size={14} />
+                            <span>Ver Niveles en Gráfico TradingView</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. Retroalimentación para Crypto Pattern Analyzer */}
+                    <div style={{
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.65rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Award size={15} style={{ color: '#10B981' }} /> RETROALIMENTACIÓN PARA LA APP
+                        </span>
+                        <span style={{ color: '#F59E0B', fontSize: '0.85rem', letterSpacing: '2px' }}>
+                          {syntheticTrader.feedback.stars}
+                        </span>
+                      </div>
+
+                      <h5 style={{ margin: 0, fontSize: '0.825rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {syntheticTrader.feedback.title}
+                      </h5>
+
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                        {syntheticTrader.feedback.comment}
+                      </p>
+
+                      <div style={{ background: 'var(--glass-bg)', padding: '8px', borderRadius: '8px', borderLeft: '3px solid #3B82F6' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: '700', color: '#60A5FA' }}>Sugerencia Algorítmica:</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          {syntheticTrader.feedback.suggestion}
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '0.7rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={12} />
+                        <span>Aporte al Modelo: {syntheticTrader.feedback.learningContribution}</span>
+                      </div>
+                    </div>
+
+                    {/* 4. Feed de Actividad en Vivo ("En Movimiento") */}
+                    <div style={{
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.65rem'
+                    }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Activity size={14} className="text-bullish" /> PULSO EN VIVO (ACTIVIDAD RECIENTE)
+                      </span>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {syntheticTrader.activityLog?.slice(0, 5).map((act, i) => (
+                          <div key={act.id || i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.73rem' }}>
+                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', marginTop: '5px', flexShrink: 0 }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: '700' }}>
+                                <span>{act.action}</span>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                  {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', marginTop: '1px' }}>
+                                {act.detail}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
+                    Generando trader simulado del día...
+                  </div>
+                )}
               </div>
             )}
           </div>

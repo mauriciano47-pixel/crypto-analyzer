@@ -5,6 +5,9 @@
  * evalúa la efectividad de las señales y genera retroalimentación continua para Crypto Pattern Analyzer.
  */
 
+import { QuantAgentEngine } from './quantAgentEngine';
+import { calculateRSI, calculateEMA, calculateBollingerBands } from './indicators';
+
 const STORAGE_DAILY_TRADER_KEY = 'crypto_analyzer_daily_trader';
 
 // Catálogo de identidades realistas de personas naturales de habla hispana e internacional
@@ -142,22 +145,109 @@ function pickProfileByDate(dateStr, seedOffset = 0) {
   return TRADER_PROFILES_POOL[index];
 }
 
-// Crear una posición simulada verosímil basada en el precio actual del activo
-function createSimulatedPosition(profile, symbol = 'BTC/USDT', currentPrice = 64500) {
+// Crear una posición simulada verosímil fundamentada en las velas históricas e indicadores técnicos
+function createSimulatedPosition(profile, symbol = 'BTC/USDT', currentPrice = 64500, candles = null) {
   const price = currentPrice > 0 ? currentPrice : 64000;
-  // Determinar dirección Long o Short
-  const isLong = Math.random() > 0.35; // Sesgo ligeramente alcista
+  const capital = 10000; // $10,000 USDT base
+  const riskAmount = capital * 0.015; // 1.5% de riesgo
+
+  // Si tenemos velas históricas disponibles, evaluar confluencia técnica real
+  if (candles && candles.length >= 30) {
+    const closes = candles.map(c => parseFloat(c.close));
+    const rsiList = calculateRSI(closes, 14);
+    const ema20List = calculateEMA(closes, 20);
+    const bbList = calculateBollingerBands(closes, 20, 2);
+
+    // Buscar la confluencia técnica más reciente en las últimas 25 velas
+    let foundSignal = null;
+    for (let idx = candles.length - 1; idx >= Math.max(22, candles.length - 25); idx--) {
+      const sig = QuantAgentEngine.evaluateConfluence(candles, idx, rsiList, ema20List, bbList);
+      if (sig) {
+        foundSignal = sig;
+        break;
+      }
+    }
+
+    if (foundSignal) {
+      const slDistance = Math.abs(foundSignal.entryPrice - foundSignal.stopLoss);
+      const positionUnits = slDistance > 0 ? Number((riskAmount / slDistance).toFixed(4)) : 0.05;
+      const notionalValue = Number((positionUnits * foundSignal.entryPrice).toFixed(2));
+
+      return {
+        id: `trade_${Date.now()}`,
+        symbol,
+        type: foundSignal.type,
+        entryPrice: foundSignal.entryPrice,
+        currentPrice: price,
+        stopLoss: foundSignal.stopLoss,
+        takeProfit: foundSignal.takeProfit,
+        positionUnits,
+        notionalValue,
+        riskAmount,
+        rrRatio: foundSignal.rrRatio,
+        floatingPnL: 0,
+        floatingPnLPercent: 0,
+        status: 'ABIERTA',
+        openedAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+        isQuantitative: true,
+        reasons: foundSignal.reasons,
+        rationale: `Confluencia Cuantitativa Real: ${foundSignal.reasons.join(' + ')}. R:R técnico de ${foundSignal.rrRatio}:1 validado con velas históricas.`
+      };
+    }
+
+    // Si no hay señal estricta en las últimas velas, usar estructura de EMA 20 y RSI Wilder
+    const lastIdx = candles.length - 1;
+    const lastClose = parseFloat(candles[lastIdx].close);
+    const lastEma = ema20List[lastIdx] ?? lastClose;
+    const lastRsi = rsiList[lastIdx] ?? 50;
+
+    const isLong = lastClose >= lastEma || lastRsi < 45;
+    const type = isLong ? 'LONG' : 'SHORT';
+
+    const recent5 = candles.slice(-5);
+    const swingLow = Math.min(...recent5.map(c => parseFloat(c.low)));
+    const swingHigh = Math.max(...recent5.map(c => parseFloat(c.high)));
+
+    const stopLoss = isLong ? Number((swingLow * 0.998).toFixed(2)) : Number((swingHigh * 1.002).toFixed(2));
+    const slDistance = Math.max(Math.abs(price - stopLoss), price * 0.008);
+    const targetRatio = 2.25;
+    const takeProfit = isLong 
+      ? Number((price + (slDistance * targetRatio)).toFixed(2))
+      : Number((price - (slDistance * targetRatio)).toFixed(2));
+
+    const positionUnits = slDistance > 0 ? Number((riskAmount / slDistance).toFixed(4)) : 0.05;
+    const notionalValue = Number((positionUnits * price).toFixed(2));
+
+    return {
+      id: `trade_${Date.now()}`,
+      symbol,
+      type,
+      entryPrice: price,
+      currentPrice: price,
+      stopLoss,
+      takeProfit,
+      positionUnits,
+      notionalValue,
+      riskAmount,
+      rrRatio: targetRatio,
+      floatingPnL: 0,
+      floatingPnLPercent: 0,
+      status: 'ABIERTA',
+      openedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      isQuantitative: true,
+      reasons: [isLong ? 'Soporte dinámico sobre EMA 20' : 'Resistencia bajo EMA 20', `RSI Wilder en ${lastRsi.toFixed(1)}`],
+      rationale: `Estructura Técnica: ${isLong ? 'Soporte dinámico sobre EMA 20' : 'Resistencia bajo EMA 20'} con RSI en ${lastRsi.toFixed(1)} y R:R calibrado a ${targetRatio}:1.`
+    };
+  }
+
+  // Fallback si aún no hay velas cargadas en memoria
+  const isLong = Math.random() > 0.35;
   const type = isLong ? 'LONG' : 'SHORT';
-  
-  // Niveles de SL y TP realistas
-  const slPercent = isLong ? 0.018 : 0.018; // 1.8%
-  const tpPercent = isLong ? 0.042 : 0.042; // 4.2% (R:R > 2.3)
+  const slPercent = 0.015;
+  const tpPercent = slPercent * 2.25;
 
   const stopLoss = isLong ? Number((price * (1 - slPercent)).toFixed(2)) : Number((price * (1 + slPercent)).toFixed(2));
   const takeProfit = isLong ? Number((price * (1 + tpPercent)).toFixed(2)) : Number((price * (1 - tpPercent)).toFixed(2));
-
-  const capital = 10000; // $10,000 USDT base
-  const riskAmount = capital * 0.02; // arriesgar $200 (2%)
   const slDistance = Math.abs(price - stopLoss);
   const positionUnits = slDistance > 0 ? Number((riskAmount / slDistance).toFixed(4)) : 0.05;
   const notionalValue = Number((positionUnits * price).toFixed(2));
@@ -173,13 +263,14 @@ function createSimulatedPosition(profile, symbol = 'BTC/USDT', currentPrice = 64
     positionUnits,
     notionalValue,
     riskAmount,
-    rrRatio: Number((Math.abs(takeProfit - price) / Math.max(1, slDistance)).toFixed(2)),
+    rrRatio: 2.25,
     floatingPnL: 0,
     floatingPnLPercent: 0,
-    status: 'ABIERTA', // 'ABIERTA' | 'TP_ALCANZADO' | 'SL_ALCANZADO'
-    openedAt: new Date(Date.now() - 1000 * 60 * (15 + Math.floor(Math.random() * 45))).toISOString(), // hace 15-60 min
+    status: 'ABIERTA',
+    openedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    isQuantitative: false,
     rationale: isLong 
-      ? `Rebote técnico en soporte con patrón de acumulación y confirmación RSI.` 
+      ? `Rebote técnico en soporte con patrón de acumulación y confirmación RSI Wilder.` 
       : `Rechazo en resistencia con sobrecompra en oscilador Wilder y pérdida de volumen.`
   };
 }
@@ -375,14 +466,33 @@ class SyntheticTraderService {
   /**
    * Forzar generación de un nuevo trader para demostraciones
    */
-  forceRotateTrader(currentSymbol = 'BTC/USDT', livePrice = null) {
+  forceRotateTrader(currentSymbol = 'BTC/USDT', livePrice = null, candles = null) {
     const newTrader = this.generateDailyTrader(getTodayKey(), true);
     if (currentSymbol && livePrice) {
-      newTrader.activePosition = createSimulatedPosition(newTrader.profile, currentSymbol, livePrice);
+      newTrader.activePosition = createSimulatedPosition(newTrader.profile, currentSymbol, livePrice, candles);
       this.saveTrader();
     }
     this.notify();
     return newTrader;
+  }
+
+  /**
+   * Sincroniza al trader con la serie de velas históricas reales cargadas en el gráfico
+   */
+  syncWithCandles(candles, symbol = 'BTC/USDT', currentPrice = null) {
+    if (!this.currentTrader || !candles || candles.length < 30) return;
+    const price = currentPrice || parseFloat(candles[candles.length - 1].close);
+
+    // Si no tiene posición cuantitativa o es de otro símbolo, recalibrar
+    const pos = this.currentTrader.activePosition;
+    const needsRecalibration = !pos || !pos.isQuantitative || (pos.symbol.replace('/', '') !== symbol.replace('/', ''));
+
+    if (needsRecalibration) {
+      this.currentTrader.activePosition = createSimulatedPosition(this.currentTrader.profile, symbol, price, candles);
+      this.logActivity('Escaneo Cuantitativo de Velas', `Analizadas ${candles.length} velas de ${symbol}. Posición ${this.currentTrader.activePosition.type} calibrada con R:R ${this.currentTrader.activePosition.rrRatio}:1.`);
+      this.saveTrader();
+      this.notify();
+    }
   }
 
   saveTrader() {
