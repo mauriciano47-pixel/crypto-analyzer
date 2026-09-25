@@ -19,7 +19,7 @@ export class QuantAgentEngine {
   /**
    * Evalúa la confluencia técnica en una barra específica dentro de la serie histórica
    */
-  static evaluateConfluence(candles, index, rsiList, ema20List, bbList) {
+  static evaluateConfluence(candles, index, rsiList, ema20List, bbList, microstructure = null) {
     if (index < 2 || index >= candles.length) return null;
 
     const c3 = candles[index];
@@ -81,11 +81,29 @@ export class QuantAgentEngine {
     const patternPresentBull = isHammer || isBullishEngulfing || isMorningStar || (low <= bb.lower * 1.002);
     const patternPresentBear = isShootingStar || isBearishEngulfing || (high >= bb.upper * 0.998);
 
+    // Integración opcional de Microestructura y Flujo de Órdenes L2
+    if (microstructure) {
+      if (microstructure.imbalance >= 0.15) {
+        bullishReasons.push(`Flujo L2: Desbalance comprador institucional (+${(microstructure.imbalance * 100).toFixed(0)}%)`);
+      } else if (microstructure.imbalance <= -0.15) {
+        bearishReasons.push(`Flujo L2: Desbalance vendedor institucional (${(microstructure.imbalance * 100).toFixed(0)}%)`);
+      }
+    }
+
     if (bullishReasons.length >= 2 && patternPresentBull) {
       const technicalSl = Math.min(low, prevLow) * 0.998;
       const slDist = Math.max(close - technicalSl, close * 0.008);
       const targetRatio = 2.25; // R:R mínimo de 2.25:1
-      const technicalTp = close + (slDist * targetRatio);
+      let technicalTp = close + (slDist * targetRatio);
+
+      // Filtro Anti-Muro Institucional L2
+      if (microstructure && microstructure.askWalls && microstructure.askWalls.length > 0) {
+        const blockingWall = microstructure.askWalls.find(w => w.price > close && w.price <= technicalTp);
+        if (blockingWall) {
+          technicalTp = Number((blockingWall.price * 0.998).toFixed(2));
+          bullishReasons.push(`TP optimizado antes de Muro Venta ($${blockingWall.price.toLocaleString()})`);
+        }
+      }
 
       return {
         type: 'LONG',
@@ -105,7 +123,16 @@ export class QuantAgentEngine {
       const technicalSl = Math.max(high, prevHigh) * 1.002;
       const slDist = Math.max(technicalSl - close, close * 0.008);
       const targetRatio = 2.25;
-      const technicalTp = close - (slDist * targetRatio);
+      let technicalTp = close - (slDist * targetRatio);
+
+      // Filtro Anti-Muro Institucional L2
+      if (microstructure && microstructure.bidWalls && microstructure.bidWalls.length > 0) {
+        const blockingWall = microstructure.bidWalls.find(w => w.price < close && w.price >= technicalTp);
+        if (blockingWall) {
+          technicalTp = Number((blockingWall.price * 1.002).toFixed(2));
+          bearishReasons.push(`TP optimizado antes de Muro Compra ($${blockingWall.price.toLocaleString()})`);
+        }
+      }
 
       return {
         type: 'SHORT',
@@ -127,7 +154,7 @@ export class QuantAgentEngine {
   /**
    * Ejecuta una simulación completa Walk-Forward sobre todo el histórico de velas
    */
-  static runHistoricalAudit(candles, symbol = 'BTC/USDT', config = {}) {
+  static runHistoricalAudit(candles, symbol = 'BTC/USDT', config = {}, microstructure = null) {
     if (!candles || candles.length < 30) {
       return {
         success: false,
@@ -157,7 +184,9 @@ export class QuantAgentEngine {
 
     let i = 22; // Comenzar con suficientes datos para EMA20 y BB20
     while (i < candles.length - 1) {
-      const signal = this.evaluateConfluence(candles, i, rsiList, ema20List, bbList);
+      // Aplicar microestructura especialmente en la ventana reciente
+      const isRecentWindow = (i >= candles.length - 8);
+      const signal = this.evaluateConfluence(candles, i, rsiList, ema20List, bbList, isRecentWindow ? microstructure : null);
 
       if (!signal) {
         i++;
@@ -300,7 +329,16 @@ export class QuantAgentEngine {
       maxDrawdownPercent: Number(maxDrawdown.toFixed(2)),
       tradesList,
       algorithmicRating: winRate >= 70 ? 'Óptima (A+)' : (winRate >= 55 ? 'Favorable (B+)' : 'Neutral (C)'),
-      feedbackReview: this.generateFeedbackReport(symbol, winRate, totalTrades, profitFactor, netProfitPercent)
+      feedbackReview: this.generateFeedbackReport(symbol, winRate, totalTrades, profitFactor, netProfitPercent),
+      microstructureSummary: microstructure ? {
+        imbalance: microstructure.imbalance,
+        bidPercentage: microstructure.bidPercentage,
+        askPercentage: microstructure.askPercentage,
+        fundingRatePercent: microstructure.fundingRatePercent,
+        bidWallsCount: microstructure.bidWalls ? microstructure.bidWalls.length : 0,
+        askWallsCount: microstructure.askWalls ? microstructure.askWalls.length : 0,
+        recommendation: microstructure.recommendation
+      } : null
     };
 
     // Guardar última auditoría en almacenamiento local

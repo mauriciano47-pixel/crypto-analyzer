@@ -22,10 +22,13 @@ import {
   ShieldCheck,
   Cpu,
   Layers,
-  Play
+  Play,
+  Scale,
+  Anchor
 } from 'lucide-react';
 import { syntheticTraderService } from '../services/syntheticTraderService';
 import { QuantAgentEngine } from '../services/quantAgentEngine';
+import { microstructureService } from '../services/microstructureService';
 
 export default function NewsColumn({ 
   news = [], 
@@ -57,6 +60,7 @@ export default function NewsColumn({
   const [agentAudit, setAgentAudit] = useState(() => QuantAgentEngine.getLatestAudit());
   const [isRunningAudit, setIsRunningAudit] = useState(false);
   const [traderSubTab, setTraderSubTab] = useState('agent'); // 'agent' | 'daily'
+  const [microstructure, setMicrostructure] = useState(() => microstructureService.getState());
 
   useEffect(() => {
     const unsub = syntheticTraderService.subscribe((trader) => {
@@ -66,6 +70,18 @@ export default function NewsColumn({
     });
     return unsub;
   }, []);
+
+  // Suscripción y conexión al motor de microestructura L2 y funding rates
+  useEffect(() => {
+    const unsub = microstructureService.subscribe((ms) => {
+      if (ms) setMicrostructure({ ...ms });
+    });
+    microstructureService.startStream(liveSymbol, currentPrice);
+    return () => {
+      unsub();
+      microstructureService.stopStream();
+    };
+  }, [liveSymbol, currentPrice]);
 
   // Sincronizar al trader con las velas históricas reales cuando estén disponibles
   useEffect(() => {
@@ -86,7 +102,7 @@ export default function NewsColumn({
           initialBalance: 10000,
           riskPerTrade: 0.015,
           maxHoldingBars: 35
-        });
+        }, microstructure);
         setAgentAudit(result);
       } catch (err) {
         console.error('[QuantAgent] Error en auditoría cuantitativa:', err);
@@ -942,6 +958,166 @@ export default function NewsColumn({
                       </>
                     )}
                   </button>
+                </div>
+
+                {/* Tarjeta de Microestructura de Mercado & Flujo de Órdenes L2 */}
+                <div style={{
+                  backgroundColor: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '0.85rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.65rem',
+                  boxShadow: 'var(--card-shadow)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Scale size={15} style={{ color: '#3B82F6' }} />
+                      <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        Flujo de Órdenes L2 &amp; Microestructura
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: '700',
+                      padding: '2px 6px',
+                      borderRadius: '6px',
+                      backgroundColor: microstructure.isConnected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      color: microstructure.isConnected ? '#10B981' : '#F59E0B',
+                      border: `1px solid ${microstructure.isConnected ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                    }}>
+                      {microstructure.isConnected ? 'Binance L2 Live 🟢' : 'Depth Sintético 🟡'}
+                    </span>
+                  </div>
+
+                  {/* Medidor Visual de Desbalance Bids vs Asks */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', marginBottom: '4px' }}>
+                      <span style={{ color: '#10B981', fontWeight: '800' }}>
+                        🟢 Compras: {microstructure.bidPercentage}% ({microstructure.totalBidVol.toLocaleString()} {cleanSym})
+                      </span>
+                      <span style={{ color: '#EF4444', fontWeight: '800' }}>
+                        🔴 Ventas: {microstructure.askPercentage}% ({microstructure.totalAskVol.toLocaleString()} {cleanSym})
+                      </span>
+                    </div>
+
+                    {/* Barra de Progreso Bicolor */}
+                    <div style={{
+                      height: '8px',
+                      width: '100%',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                      overflow: 'hidden',
+                      display: 'flex'
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${microstructure.bidPercentage}%`,
+                        backgroundColor: '#10B981',
+                        transition: 'width 0.4s ease'
+                      }} />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '0.66rem', color: 'var(--text-muted)' }}>
+                      <span>
+                        Desbalance: <strong style={{ color: microstructure.imbalance >= 0 ? '#10B981' : '#EF4444' }}>
+                          {microstructure.imbalance >= 0 ? '+' : ''}{(microstructure.imbalance * 100).toFixed(1)}%
+                        </strong>
+                      </span>
+                      <span>
+                        Puntuación L2: <strong style={{ color: microstructure.microstructureScore >= 0 ? '#10B981' : '#EF4444' }}>
+                          {microstructure.microstructureScore >= 0 ? '+' : ''}{microstructure.microstructureScore}/100
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tasa de Financiación de Futuros & Riesgo de Liquidación */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '6px',
+                    backgroundColor: 'var(--glass-bg)',
+                    padding: '7px 9px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)' }}>Funding Rate (8h)</div>
+                      <div style={{
+                        fontSize: '0.78rem',
+                        fontWeight: '800',
+                        color: microstructure.fundingRatePercent > 0.03 ? '#EF4444' : (microstructure.fundingRatePercent < -0.015 ? '#10B981' : '#60A5FA')
+                      }}>
+                        {microstructure.fundingRatePercent >= 0 ? '+' : ''}{microstructure.fundingRatePercent}%
+                      </div>
+                      <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', marginTop: '1px' }}>
+                        {microstructure.fundingStatus.split('(')[0]}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)' }}>Riesgo de Liquidación</div>
+                      <div style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        {microstructure.liquidationRisk.split('(')[0]}
+                      </div>
+                      <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', marginTop: '1px' }}>
+                        Filtro Anti-Squeeze Activo
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Radar de Muros Institucionales (Bid/Ask Walls) */}
+                  <div style={{
+                    backgroundColor: 'var(--glass-bg)',
+                    padding: '7px 9px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{ fontSize: '0.66rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Anchor size={12} style={{ color: '#F59E0B' }} />
+                      <span>Muros Institucionales Detectados:</span>
+                    </div>
+
+                    <div style={{ fontSize: '0.68rem', display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)' }}>
+                      <span>
+                        🟢 Muro Compra: {microstructure.bidWalls && microstructure.bidWalls.length > 0 ? (
+                          <strong style={{ color: '#10B981' }}>
+                            ${microstructure.bidWalls[0].price.toLocaleString()} ({microstructure.bidWalls[0].qty} {cleanSym})
+                          </strong>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>Sin muro</span>
+                        )}
+                      </span>
+                      <span>
+                        🔴 Muro Venta: {microstructure.askWalls && microstructure.askWalls.length > 0 ? (
+                          <strong style={{ color: '#EF4444' }}>
+                            ${microstructure.askWalls[0].price.toLocaleString()} ({microstructure.askWalls[0].qty} {cleanSym})
+                          </strong>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>Sin muro</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Recomendación y Filtro del Agente */}
+                  <div style={{
+                    backgroundColor: 'var(--glass-bg)',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    borderLeft: `3px solid ${microstructure.microstructureScore >= 20 ? '#10B981' : (microstructure.microstructureScore <= -20 ? '#EF4444' : '#3B82F6')}`,
+                    fontSize: '0.7rem',
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.35
+                  }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Filtro de Microestructura: </strong>
+                    {microstructure.recommendation}
+                  </div>
                 </div>
 
                 {/* Resultados de la Auditoría */}
