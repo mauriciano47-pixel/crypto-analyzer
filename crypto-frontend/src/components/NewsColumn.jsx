@@ -61,6 +61,7 @@ export default function NewsColumn({
   const [isRunningAudit, setIsRunningAudit] = useState(false);
   const [traderSubTab, setTraderSubTab] = useState('agent'); // 'agent' | 'daily'
   const [microstructure, setMicrostructure] = useState(() => microstructureService.getState());
+  const [plottedTradeId, setPlottedTradeId] = useState(null);
 
   useEffect(() => {
     const unsub = syntheticTraderService.subscribe((trader) => {
@@ -1352,33 +1353,51 @@ export default function NewsColumn({
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      const tradeKey = `agent-${t.id || t.timestamp || t.type}`;
                                       onPlotTradeLevels({
+                                        symbol: t.symbol || liveSymbol,
                                         entry: t.entryPrice,
                                         stopLoss: t.stopLoss,
                                         takeProfit: t.takeProfit,
                                         isLong: t.type === 'LONG',
-                                        label: `Agente: ${t.type} (${t.outcome})`
+                                        label: `Agente Cuántico (${t.type})`
                                       });
+                                      setPlottedTradeId(tradeKey);
+                                      setTimeout(() => setPlottedTradeId(null), 3500);
                                     }}
                                     style={{
                                       width: '100%',
-                                      padding: '4px',
+                                      padding: '5px',
                                       marginTop: '3px',
                                       borderRadius: '6px',
-                                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                                      color: '#10B981',
+                                      border: plottedTradeId === `agent-${t.id || t.timestamp || t.type}`
+                                        ? '1px solid #10B981'
+                                        : '1px solid rgba(16, 185, 129, 0.3)',
+                                      backgroundColor: plottedTradeId === `agent-${t.id || t.timestamp || t.type}`
+                                        ? 'rgba(16, 185, 129, 0.25)'
+                                        : 'rgba(16, 185, 129, 0.08)',
+                                      color: plottedTradeId === `agent-${t.id || t.timestamp || t.type}`
+                                        ? '#34D399'
+                                        : '#10B981',
                                       fontWeight: '700',
                                       fontSize: '0.7rem',
                                       cursor: 'pointer',
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      gap: '4px'
+                                      gap: '4px',
+                                      transition: 'all 0.2s ease',
+                                      boxShadow: plottedTradeId === `agent-${t.id || t.timestamp || t.type}`
+                                        ? '0 0 8px rgba(16, 185, 129, 0.35)'
+                                        : 'none'
                                     }}
                                   >
                                     <Crosshair size={12} />
-                                    <span>Ver Trade en Gráfico</span>
+                                    <span>
+                                      {plottedTradeId === `agent-${t.id || t.timestamp || t.type}`
+                                        ? '¡Nivel Proyectado en Gráfico! 🎯'
+                                        : 'Ver Trade en Gráfico'}
+                                    </span>
                                   </button>
                                 )}
                               </div>
@@ -1622,33 +1641,50 @@ export default function NewsColumn({
                             type="button"
                             onClick={() => {
                               const pos = syntheticTrader.activePosition;
+                              const tradeKey = `trader-daily-${pos.symbol}-${pos.id || 'pos'}`;
                               onPlotTradeLevels({
+                                symbol: pos.symbol,
                                 entry: pos.entryPrice,
                                 stopLoss: pos.stopLoss,
                                 takeProfit: pos.takeProfit,
                                 isLong: pos.type === 'LONG',
                                 label: `${syntheticTrader.profile.name.split(' ')[0]}`
                               });
+                              setPlottedTradeId(tradeKey);
+                              setTimeout(() => setPlottedTradeId(null), 3500);
                             }}
                             style={{
                               width: '100%',
-                              padding: '7px',
+                              padding: '8px',
                               borderRadius: '8px',
-                              border: '1px solid rgba(16, 185, 129, 0.4)',
-                              background: 'rgba(16, 185, 129, 0.1)',
-                              color: '#10B981',
-                              fontWeight: '700',
-                              fontSize: '0.78rem',
+                              border: plottedTradeId?.startsWith('trader-daily')
+                                ? '1px solid #10B981'
+                                : '1px solid rgba(16, 185, 129, 0.4)',
+                              background: plottedTradeId?.startsWith('trader-daily')
+                                ? 'rgba(16, 185, 129, 0.25)'
+                                : 'rgba(16, 185, 129, 0.1)',
+                              color: plottedTradeId?.startsWith('trader-daily')
+                                ? '#34D399'
+                                : '#10B981',
+                              fontWeight: '800',
+                              fontSize: '0.8rem',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '6px',
-                              transition: 'all 0.2s'
+                              boxShadow: plottedTradeId?.startsWith('trader-daily')
+                                ? '0 0 12px rgba(16, 185, 129, 0.4)'
+                                : 'none',
+                              transition: 'all 0.25s ease'
                             }}
                           >
                             <Crosshair size={14} />
-                            <span>Ver Niveles en Gráfico TradingView</span>
+                            <span>
+                              {plottedTradeId?.startsWith('trader-daily')
+                                ? '¡Niveles Trazados en Gráfico! 🎯'
+                                : 'Ver Niveles en Gráfico TradingView'}
+                            </span>
                           </button>
                         )}
                       </div>

@@ -383,6 +383,31 @@ function App() {
     }
   };
 
+  const handlePlotTradeLevels = useCallback(async (levels) => {
+    if (!levels) return;
+
+    // Si el par del trade difiere del activo actualmente en gráfico, cambiar stream en vivo
+    if (levels.symbol && levels.symbol !== liveSymbol) {
+      await startLiveStream(levels.symbol, liveTimeframe);
+    }
+
+    // Proyectar niveles con timestamp único para forzar actualización reactiva en TradingChart
+    setExternalTradeLevels({
+      ...levels,
+      _id: Date.now()
+    });
+
+    // Desplazar la vista suavemente hacia el gráfico interactivo para feedback inmediato
+    setTimeout(() => {
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        mainElement.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 150);
+  }, [liveSymbol, liveTimeframe, startLiveStream]);
+
   const handleDatasetCreated = (dataset) => {
     setDatasets(prev => [dataset, ...prev]);
     setSelectedDatasetId(dataset.id);
@@ -806,7 +831,7 @@ function App() {
         patterns={patterns}
         chartData={chartData}
         onRefreshNews={() => fetchLiveNews(liveSymbol)}
-        onPlotTradeLevels={(levels) => setExternalTradeLevels(levels)}
+        onPlotTradeLevels={handlePlotTradeLevels}
         activeTab={sideTab}
         onTabChange={setSideTab}
       />

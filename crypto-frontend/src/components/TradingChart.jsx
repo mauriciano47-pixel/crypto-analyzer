@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, CandlestickSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, ArrowUpRight, ArrowDownRight, Crosshair } from 'lucide-react';
 import { calculateEMA, calculateBollingerBands, calculateFibonacciLevels, calculatePivotPoints } from '../services/indicators';
 import TechnicalToolbar from './TechnicalToolbar';
 import RiskCalculatorModal from './RiskCalculatorModal';
@@ -39,6 +39,11 @@ export default function TradingChart({
   const [showPivot, setShowPivot] = useState(false);
   const [riskModalOpen, setRiskModalOpen] = useState(false);
   const [hasActiveTradeLines, setHasActiveTradeLines] = useState(false);
+  const [activeTradeInfo, setActiveTradeInfo] = useState(null);
+  const externalTradeLevelsRef = useRef(externalTradeLevels);
+  useEffect(() => {
+    externalTradeLevelsRef.current = externalTradeLevels;
+  }, [externalTradeLevels]);
   const ema20SeriesRef = useRef();
   const bollUpperSeriesRef = useRef();
   const bollLowerSeriesRef = useRef();
@@ -109,6 +114,61 @@ export default function TradingChart({
     if (!chartRef.current) return;
     chartRef.current.timeScale().scrollToPosition(0, true);
   };
+
+  // Handlers para trazar y limpiar niveles de trade (modal de riesgo o trader simulado)
+  const handleClearTradeLevels = useCallback(() => {
+    tradeLinesRef.current.forEach(line => {
+      try {
+        candlestickSeriesRef.current?.removePriceLine(line);
+      } catch {
+        // Ignorar si ya fue removido
+      }
+    });
+    tradeLinesRef.current = [];
+    setHasActiveTradeLines(false);
+    setActiveTradeInfo(null);
+  }, []);
+
+  const handlePlotTradeLevels = useCallback((levels) => {
+    if (!candlestickSeriesRef.current || !levels) return;
+    handleClearTradeLevels();
+    const { entry, stopLoss, takeProfit, isLong, label } = levels;
+    const entryLine = candlestickSeriesRef.current.createPriceLine({
+      price: entry,
+      color: isLong ? '#10B981' : '#EF4444',
+      lineWidth: 2,
+      title: label ? `${label} Entrada` : 'Entrada',
+    });
+    const slLine = candlestickSeriesRef.current.createPriceLine({
+      price: stopLoss,
+      color: '#EF4444',
+      lineWidth: 1,
+      title: label ? `${label} SL` : 'Stop Loss',
+    });
+    const tpLine = candlestickSeriesRef.current.createPriceLine({
+      price: takeProfit,
+      color: '#10B981',
+      lineWidth: 1,
+      title: label ? `${label} TP` : 'Take Profit',
+    });
+    tradeLinesRef.current = [entryLine, slLine, tpLine];
+    setHasActiveTradeLines(true);
+    setActiveTradeInfo({
+      entry,
+      stopLoss,
+      takeProfit,
+      isLong,
+      label: label || 'Posición'
+    });
+
+    if (chartRef.current) {
+      try {
+        chartRef.current.timeScale().scrollToPosition(0, true);
+      } catch {
+        // Ignorar si aún está sincronizando
+      }
+    }
+  }, [handleClearTradeLevels]);
 
   // Inicializar el gráfico y las series una sola vez por activo/dataset
   useEffect(() => {
@@ -400,6 +460,9 @@ export default function TradingChart({
 
     if (uniqueFormattedData.length > 0) {
       candlestickSeriesRef.current.setData(uniqueFormattedData);
+      if (externalTradeLevelsRef.current) {
+        handlePlotTradeLevels(externalTradeLevelsRef.current);
+      }
     }
 
     // Sincronizar SMA 20
@@ -460,7 +523,7 @@ export default function TradingChart({
       chartRef.current.timeScale().fitContent();
       isFirstRenderRef.current = false;
     }
-  }, [data]);
+  }, [data, handlePlotTradeLevels]);
 
   // Actualización fluida en tiempo real (Tick a Tick vía WebSocket)
   useEffect(() => {
@@ -597,40 +660,9 @@ export default function TradingChart({
     });
   }, [showPivot, data]);
 
-  // Handlers para trazar y limpiar niveles de trade (modal de riesgo o trader simulado)
-  const handleClearTradeLevels = useCallback(() => {
-    tradeLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
-    tradeLinesRef.current = [];
-    setHasActiveTradeLines(false);
-  }, []);
 
-  const handlePlotTradeLevels = useCallback((levels) => {
-    if (!candlestickSeriesRef.current || !levels) return;
-    handleClearTradeLevels();
-    const { entry, stopLoss, takeProfit, isLong, label } = levels;
-    const entryLine = candlestickSeriesRef.current.createPriceLine({
-      price: entry,
-      color: isLong ? '#10B981' : '#EF4444',
-      lineWidth: 2,
-      title: label ? `${label} Entrada` : 'Entrada',
-    });
-    const slLine = candlestickSeriesRef.current.createPriceLine({
-      price: stopLoss,
-      color: '#EF4444',
-      lineWidth: 1,
-      title: label ? `${label} SL` : 'Stop Loss',
-    });
-    const tpLine = candlestickSeriesRef.current.createPriceLine({
-      price: takeProfit,
-      color: '#10B981',
-      lineWidth: 1,
-      title: label ? `${label} TP` : 'Take Profit',
-    });
-    tradeLinesRef.current = [entryLine, slLine, tpLine];
-    setHasActiveTradeLines(true);
-  }, [handleClearTradeLevels]);
 
-  // Escuchar niveles externos (ej. desde el trader diario simulado)
+  // Escuchar niveles externos (ej. desde el trader diario simulado o agente cuántico)
   useEffect(() => {
     if (externalTradeLevels && candlestickSeriesRef.current) {
       handlePlotTradeLevels(externalTradeLevels);
@@ -916,6 +948,52 @@ export default function TradingChart({
       
       {/* Contenedores de Gráficos (Velas Principales + Oscilador RSI) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+        {/* Banner Informativo de Niveles de Trade Trazados */}
+        {hasActiveTradeLines && activeTradeInfo && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.45rem 0.85rem',
+            borderRadius: '8px',
+            backgroundColor: activeTradeInfo.isLong ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+            border: `1px solid ${activeTradeInfo.isLong ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+            fontSize: '0.78rem',
+            color: '#F1F5F9'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <span style={{
+                fontWeight: '800',
+                color: activeTradeInfo.isLong ? '#10B981' : '#EF4444',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}>
+                <Crosshair size={14} /> {activeTradeInfo.label} ({activeTradeInfo.isLong ? 'LONG 🟢' : 'SHORT 🔴'})
+              </span>
+              <span>Entrada: <strong style={{ color: 'var(--text-primary)' }}>${activeTradeInfo.entry.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+              <span>SL: <strong style={{ color: '#EF4444' }}>${activeTradeInfo.stopLoss.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+              <span>TP: <strong style={{ color: '#10B981' }}>${activeTradeInfo.takeProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearTradeLevels}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '3px 8px',
+                fontSize: '0.72rem',
+                fontWeight: '600'
+              }}
+            >
+              Limpiar Niveles ✕
+            </button>
+          </div>
+        )}
+
         <div 
           ref={chartContainerRef} 
           style={{ position: 'relative', height: '390px', width: '100%' }} 
