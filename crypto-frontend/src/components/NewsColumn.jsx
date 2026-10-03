@@ -40,7 +40,9 @@ export default function NewsColumn({
   onRefreshNews,
   onPlotTradeLevels = null,
   activeTab: controlledTab = null,
-  onTabChange = null
+  onTabChange = null,
+  orderFlowState = null,
+  mtfState = null
 }) {
   const [internalTab, setInternalTab] = useState('noticias'); // 'noticias' | 'sentimiento' | 'tecnico' | 'traders'
   const activeTab = controlledTab || internalTab;
@@ -103,7 +105,7 @@ export default function NewsColumn({
           initialBalance: 10000,
           riskPerTrade: 0.015,
           maxHoldingBars: 35
-        }, microstructure);
+        }, microstructure, orderFlowState, mtfState);
         setAgentAudit(result);
       } catch (err) {
         console.error('[QuantAgent] Error en auditoría cuantitativa:', err);
@@ -1120,6 +1122,161 @@ export default function NewsColumn({
                     {microstructure.recommendation}
                   </div>
                 </div>
+
+                {/* Monitor en Vivo de Order Flow & CVD (@aggTrade) */}
+                {orderFlowState && (
+                  <div style={{
+                    backgroundColor: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '0.85rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.65rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Activity size={14} style={{ color: '#06B6D4' }} /> ORDER FLOW & CVD EN VIVO (@aggTrade)
+                      </span>
+                      <span style={{
+                        fontSize: '0.64rem',
+                        fontWeight: '800',
+                        padding: '2px 6px',
+                        borderRadius: '6px',
+                        backgroundColor: orderFlowState.isConnected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                        color: orderFlowState.isConnected ? '#10B981' : '#EF4444',
+                        border: `1px solid ${orderFlowState.isConnected ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                      }}>
+                        {orderFlowState.isConnected ? '● STREAM ACTIVO' : '○ SIMULACIÓN'}
+                      </span>
+                    </div>
+
+                    {/* Barra de Agresividad Taker (Market Orders) */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', marginBottom: '3px' }}>
+                        <span style={{ color: '#10B981', fontWeight: '700' }}>Taker Buy: {orderFlowState.takerBuyRatio}%</span>
+                        <span style={{ color: '#EF4444', fontWeight: '700' }}>Taker Sell: {orderFlowState.takerSellRatio}%</span>
+                      </div>
+                      <div style={{
+                        height: '6px',
+                        width: '100%',
+                        backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                        borderRadius: '3px',
+                        overflow: 'hidden',
+                        display: 'flex'
+                      }}>
+                        <div style={{
+                          width: `${orderFlowState.takerBuyRatio}%`,
+                          backgroundColor: '#10B981',
+                          height: '100%',
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Delta Actual y CVD Acumulado */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '8px',
+                      backgroundColor: 'var(--glass-bg)',
+                      padding: '7px 9px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)' }}>Delta de Agresión</div>
+                        <div style={{
+                          fontSize: '0.78rem',
+                          fontWeight: '800',
+                          color: (orderFlowState.currentDelta || 0) >= 0 ? '#10B981' : '#EF4444'
+                        }}>
+                          {(orderFlowState.currentDelta || 0) >= 0 ? '+' : ''}{(orderFlowState.currentDelta || 0).toFixed(2)}
+                        </div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', marginTop: '1px' }}>
+                          Flujo {orderFlowState.deltaIntensity}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)' }}>CVD Acumulado</div>
+                        <div style={{
+                          fontSize: '0.78rem',
+                          fontWeight: '800',
+                          color: (orderFlowState.cumulativeDelta || 0) >= 0 ? '#10B981' : '#EF4444'
+                        }}>
+                          {(orderFlowState.cumulativeDelta || 0) >= 0 ? '+' : ''}{(orderFlowState.cumulativeDelta || 0).toFixed(2)}
+                        </div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', marginTop: '1px' }}>
+                          Vol. Total: {(orderFlowState.totalVolume || 0).toFixed(1)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Detección de Absorción Institucional */}
+                    <div style={{
+                      backgroundColor: orderFlowState.absorptionStatus === 'BULLISH_ABSORPTION'
+                        ? 'rgba(16, 185, 129, 0.1)'
+                        : orderFlowState.absorptionStatus === 'BEARISH_ABSORPTION'
+                        ? 'rgba(239, 68, 68, 0.1)'
+                        : 'var(--glass-bg)',
+                      padding: '7px 9px',
+                      borderRadius: '8px',
+                      borderLeft: `3px solid ${
+                        orderFlowState.absorptionStatus === 'BULLISH_ABSORPTION'
+                          ? '#10B981'
+                          : orderFlowState.absorptionStatus === 'BEARISH_ABSORPTION'
+                          ? '#EF4444'
+                          : '#06B6D4'
+                      }`,
+                      fontSize: '0.7rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.35
+                    }}>
+                      <div style={{
+                        fontWeight: '800',
+                        color: orderFlowState.absorptionStatus === 'BULLISH_ABSORPTION'
+                          ? '#10B981'
+                          : orderFlowState.absorptionStatus === 'BEARISH_ABSORPTION'
+                          ? '#EF4444'
+                          : 'var(--text-primary)',
+                        marginBottom: '2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        {orderFlowState.absorptionStatus === 'BULLISH_ABSORPTION' && '🛡️ ABSORCIÓN COMPRADORA INSTITUCIONAL DETECTADA'}
+                        {orderFlowState.absorptionStatus === 'BEARISH_ABSORPTION' && '⚠️ ABSORCIÓN VENDEDORA INSTITUCIONAL DETECTADA'}
+                        {orderFlowState.absorptionStatus === 'NEUTRAL' && '⚖️ Absorción Institucional Equilibrada'}
+                      </div>
+                      <div>{orderFlowState.absorptionReason}</div>
+                    </div>
+
+                    {/* Resumen MTF Confluence si existe */}
+                    {mtfState && (
+                      <div style={{
+                        backgroundColor: 'var(--glass-bg)',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.67rem'
+                      }}>
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          Sesgo MTF (Triple Screen):
+                        </span>
+                        <span style={{
+                          fontWeight: '800',
+                          color: mtfState.overallBias === 'ALIGNED_BULL' ? '#10B981' : (mtfState.overallBias === 'ALIGNED_BEAR' ? '#EF4444' : '#F59E0B')
+                        }}>
+                          {mtfState.overallBias === 'ALIGNED_BULL' ? '🟢 ALINEACIÓN ALCISTA' : (mtfState.overallBias === 'ALIGNED_BEAR' ? '🔴 ALINEACIÓN BAJISTA' : '🟡 MIXTO / CONTRATENDENCIA')} ({mtfState.alignmentScore >= 0 ? '+' : ''}{mtfState.alignmentScore}%)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Resultados de la Auditoría */}
                 {agentAudit && agentAudit.success ? (

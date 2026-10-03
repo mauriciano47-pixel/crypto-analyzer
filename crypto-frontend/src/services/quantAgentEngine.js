@@ -19,7 +19,7 @@ export class QuantAgentEngine {
   /**
    * Evalúa la confluencia técnica en una barra específica dentro de la serie histórica
    */
-  static evaluateConfluence(candles, index, rsiList, ema20List, bbList, microstructure = null) {
+  static evaluateConfluence(candles, index, rsiList, ema20List, bbList, microstructure = null, orderFlow = null, mtf = null) {
     if (index < 2 || index >= candles.length) return null;
 
     const c3 = candles[index];
@@ -77,11 +77,7 @@ export class QuantAgentEngine {
     else if (prevRsi > 65 && rsi < prevRsi) bearishReasons.push(`Inflexión bajista de RSI (${prevRsi.toFixed(1)} → ${rsi.toFixed(1)})`);
     if (close <= ema20 * 1.015 && close >= ema20 * 0.985) bearishReasons.push('Resistencia dinámica bajo EMA 20');
 
-    // Mínimo 2 condiciones técnicas sólidas para evitar operaciones a ciegas
-    const patternPresentBull = isHammer || isBullishEngulfing || isMorningStar || (low <= bb.lower * 1.002);
-    const patternPresentBear = isShootingStar || isBearishEngulfing || (high >= bb.upper * 0.998);
-
-    // Integración opcional de Microestructura y Flujo de Órdenes L2
+    // 4. Integración de Microestructura y Flujo de Órdenes L2
     if (microstructure) {
       if (microstructure.imbalance >= 0.15) {
         bullishReasons.push(`Flujo L2: Desbalance comprador institucional (+${(microstructure.imbalance * 100).toFixed(0)}%)`);
@@ -90,10 +86,43 @@ export class QuantAgentEngine {
       }
     }
 
+    // 5. Integración de Order Flow & CVD (Delta de Volumen Acumulado)
+    if (orderFlow) {
+      if (orderFlow.absorptionStatus === 'BULLISH_ABSORPTION') {
+        bullishReasons.push('Absorción CVD: Muro pasivo institucional absorbiendo ventas a mercado 🟢');
+      } else if (orderFlow.absorptionStatus === 'BEARISH_ABSORPTION') {
+        bearishReasons.push('Absorción CVD: Muro pasivo institucional absorbiendo compras a mercado 🔴');
+      }
+      if (orderFlow.takerBuyRatio >= 62) {
+        bullishReasons.push(`Agresividad Taker: Dominio Comprador (${orderFlow.takerBuyRatio}%)`);
+      } else if (orderFlow.takerSellRatio >= 62) {
+        bearishReasons.push(`Agresividad Taker: Dominio Vendedor (${orderFlow.takerSellRatio}%)`);
+      }
+    }
+
+    // 6. Integración del Radar Multitemporal (MTF - Elder Triple Screen)
+    let isCounterTrend = false;
+    if (mtf) {
+      if (mtf.elderTripleScreen === 'ALIGNED_BULL') {
+        bullishReasons.push('Radar MTF: Triple Screen alineado alcista (1D/1H/15M) 🟢');
+      } else if (mtf.elderTripleScreen === 'ALIGNED_BEAR') {
+        bearishReasons.push('Radar MTF: Triple Screen alineado bajista (1D/1H/15M) 🔴');
+      } else if (mtf.elderTripleScreen === 'COUNTER_TREND_CAUTION') {
+        isCounterTrend = true;
+      }
+    }
+
+    // Mínimo 2 condiciones técnicas sólidas para evitar operaciones a ciegas
+    const patternPresentBull = isHammer || isBullishEngulfing || isMorningStar || (low <= bb.lower * 1.002) || (orderFlow?.absorptionStatus === 'BULLISH_ABSORPTION');
+    const patternPresentBear = isShootingStar || isBearishEngulfing || (high >= bb.upper * 0.998) || (orderFlow?.absorptionStatus === 'BEARISH_ABSORPTION');
+
     if (bullishReasons.length >= 2 && patternPresentBull) {
-      const technicalSl = Math.min(low, prevLow) * 0.998;
+      if (isCounterTrend) {
+        bullishReasons.push('⚠️ Alerta Contratendencia: Stop Loss ceñido defensivo');
+      }
+      const technicalSl = Math.min(low, prevLow) * (isCounterTrend ? 0.9985 : 0.998);
       const slDist = Math.max(close - technicalSl, close * 0.008);
-      const targetRatio = 2.25; // R:R mínimo de 2.25:1
+      const targetRatio = isCounterTrend ? 2.0 : 2.25; // R:R calibrado
       let technicalTp = close + (slDist * targetRatio);
 
       // Filtro Anti-Muro Institucional L2
@@ -120,9 +149,12 @@ export class QuantAgentEngine {
     }
 
     if (bearishReasons.length >= 2 && patternPresentBear) {
-      const technicalSl = Math.max(high, prevHigh) * 1.002;
+      if (isCounterTrend) {
+        bearishReasons.push('⚠️ Alerta Contratendencia: Stop Loss ceñido defensivo');
+      }
+      const technicalSl = Math.max(high, prevHigh) * (isCounterTrend ? 1.0015 : 1.002);
       const slDist = Math.max(technicalSl - close, close * 0.008);
-      const targetRatio = 2.25;
+      const targetRatio = isCounterTrend ? 2.0 : 2.25;
       let technicalTp = close - (slDist * targetRatio);
 
       // Filtro Anti-Muro Institucional L2
@@ -154,7 +186,7 @@ export class QuantAgentEngine {
   /**
    * Ejecuta una simulación completa Walk-Forward sobre todo el histórico de velas
    */
-  static runHistoricalAudit(candles, symbol = 'BTC/USDT', config = {}, microstructure = null) {
+  static runHistoricalAudit(candles, symbol = 'BTC/USDT', config = {}, microstructure = null, orderFlow = null, mtf = null) {
     if (!candles || candles.length < 30) {
       return {
         success: false,
@@ -184,9 +216,18 @@ export class QuantAgentEngine {
 
     let i = 22; // Comenzar con suficientes datos para EMA20 y BB20
     while (i < candles.length - 1) {
-      // Aplicar microestructura especialmente en la ventana reciente
+      // Aplicar microestructura y order flow especialmente en la ventana reciente
       const isRecentWindow = (i >= candles.length - 8);
-      const signal = this.evaluateConfluence(candles, i, rsiList, ema20List, bbList, isRecentWindow ? microstructure : null);
+      const signal = this.evaluateConfluence(
+        candles, 
+        i, 
+        rsiList, 
+        ema20List, 
+        bbList, 
+        isRecentWindow ? microstructure : null,
+        isRecentWindow ? orderFlow : null,
+        isRecentWindow ? mtf : null
+      );
 
       if (!signal) {
         i++;
@@ -338,6 +379,22 @@ export class QuantAgentEngine {
         bidWallsCount: microstructure.bidWalls ? microstructure.bidWalls.length : 0,
         askWallsCount: microstructure.askWalls ? microstructure.askWalls.length : 0,
         recommendation: microstructure.recommendation
+      } : null,
+      orderFlowSummary: orderFlow ? {
+        takerBuyRatio: orderFlow.takerBuyRatio,
+        takerSellRatio: orderFlow.takerSellRatio,
+        absorptionStatus: orderFlow.absorptionStatus,
+        absorptionReason: orderFlow.absorptionReason,
+        deltaIntensity: orderFlow.deltaIntensity,
+        currentDelta: orderFlow.currentDelta
+      } : null,
+      mtfSummary: mtf ? {
+        alignmentPercent: mtf.alignmentPercent,
+        alignmentStatus: mtf.alignmentStatus,
+        elderTripleScreen: mtf.elderTripleScreen,
+        elderMessage: mtf.elderMessage,
+        bullishCount: mtf.bullishCount,
+        bearishCount: mtf.bearishCount
       } : null
     };
 

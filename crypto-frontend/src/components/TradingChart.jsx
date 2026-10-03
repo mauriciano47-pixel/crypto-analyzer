@@ -4,6 +4,7 @@ import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, A
 import { calculateEMA, calculateBollingerBands, calculateFibonacciLevels, calculatePivotPoints } from '../services/indicators';
 import TechnicalToolbar from './TechnicalToolbar';
 import RiskCalculatorModal from './RiskCalculatorModal';
+import MtfRadarBar from './MtfRadarBar';
 export default function TradingChart({ 
   data, 
   patterns, 
@@ -17,7 +18,9 @@ export default function TradingChart({
   liveTimeframe = '1m',
   onTimeframeChange = null,
   theme = 'dark',
-  externalTradeLevels = null
+  externalTradeLevels = null,
+  orderFlowState = null,
+  mtfState = null
 }) {
   const chartContainerRef = useRef();
   const chartRef = useRef();
@@ -945,6 +948,14 @@ export default function TradingChart({
           </button>
         </div>
       </div>
+
+      {/* Barra HUD: Radar Multitemporal (MTF) & Order Flow (CVD) */}
+      <MtfRadarBar 
+        mtfState={mtfState}
+        orderFlowState={orderFlowState}
+        activeTimeframe={liveTimeframe}
+        onTimeframeChange={onTimeframeChange}
+      />
       
       {/* Contenedores de Gráficos (Velas Principales + Oscilador RSI) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>

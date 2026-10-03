@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from './services/api';
 import { authService } from './services/authService';
 import { syntheticTraderService } from './services/syntheticTraderService';
+import { orderFlowService } from './services/orderFlowService';
+import { mtfService } from './services/mtfService';
 import { CryptoLiveStream } from './services/liveStream';
 import DataIngestion from './components/DataIngestion';
 import TradingChart from './components/TradingChart';
@@ -159,6 +161,41 @@ function App() {
     });
     return unsub;
   }, []);
+
+  // Suscripción al motor de Order Flow (CVD) y Radar Multitemporal (MTF)
+  const [orderFlowState, setOrderFlowState] = useState(() => orderFlowService.getState());
+  const [mtfState, setMtfState] = useState(() => mtfService.getState());
+
+  useEffect(() => {
+    const unsub = orderFlowService.subscribe((state) => {
+      if (state) setOrderFlowState({ ...state });
+    });
+    orderFlowService.startStream(liveSymbol);
+    return () => {
+      unsub();
+      orderFlowService.disconnect();
+    };
+  }, [liveSymbol]);
+
+  useEffect(() => {
+    const unsub = mtfService.subscribe((state) => {
+      if (state) setMtfState({ ...state });
+    });
+    mtfService.scanSymbol(liveSymbol, currentPrice);
+    const interval = setInterval(() => {
+      mtfService.scanSymbol(liveSymbol, currentPrice);
+    }, 25000);
+    return () => {
+      unsub();
+      clearInterval(interval);
+    };
+  }, [liveSymbol, currentPrice]);
+
+  useEffect(() => {
+    if (chartData && chartData.length > 0) {
+      orderFlowService.syncWithCandles(chartData);
+    }
+  }, [chartData]);
 
   useEffect(() => {
     if (typeof currentPrice === 'number' && currentPrice > 0) {
@@ -735,6 +772,8 @@ function App() {
                 }}
                 theme={theme}
                 externalTradeLevels={externalTradeLevels}
+                orderFlowState={orderFlowState}
+                mtfState={mtfState}
               />
 
               {/* Panel de Patrones Detectados con Backtesting Cuantitativo */}
@@ -834,6 +873,8 @@ function App() {
         onPlotTradeLevels={handlePlotTradeLevels}
         activeTab={sideTab}
         onTabChange={setSideTab}
+        orderFlowState={orderFlowState}
+        mtfState={mtfState}
       />
     </div>
   );
