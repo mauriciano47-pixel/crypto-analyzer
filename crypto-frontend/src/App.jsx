@@ -96,8 +96,8 @@ function App() {
   useEffect(() => {
     try {
       localStorage.setItem('crypto_analyzer_theme', theme);
-    } catch (e) {
-      console.warn('Error guardando preferencia de tema:', e);
+    } catch {
+      // Fallback silencioso si localStorage está restringido
     }
     document.documentElement.setAttribute('data-theme', theme);
     if (theme === 'light') {
@@ -122,8 +122,8 @@ function App() {
       }
       link.type = 'image/svg+xml';
       link.href = svgIconData;
-    } catch (e) {
-      console.warn('Error inyectando favicon dinámico:', e);
+    } catch {
+      // Fallback silencioso si el DOM no permite mutar head
     }
   }, []);
 
@@ -306,8 +306,8 @@ function App() {
           url: 'https://cryptonews.com'
         }
       ]);
-    } catch (e) {
-      console.warn('Noticias fallback:', e);
+    } catch {
+      // Fallback silencioso para noticias
     }
   }, []);
 
@@ -516,8 +516,7 @@ function App() {
       if (seriesData.length > 0) {
         setCurrentPrice(parseFloat(seriesData[seriesData.length - 1].close));
       }
-    } catch (err) {
-      console.warn('Error cargando análisis de backend:', err);
+    } catch {
       setError('El servidor de análisis histórico está en reposo. Mostrando datos directos del mercado.');
     } finally {
       setIsLoading(false);

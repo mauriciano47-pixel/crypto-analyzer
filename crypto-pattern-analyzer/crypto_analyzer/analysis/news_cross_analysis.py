@@ -116,7 +116,7 @@ def sincronizar_noticias(asset_symbol: str) -> int:
             'sube', 'alcista', 'crece', 'ganancia', 'máximo', 'maximo', 'aprobar', 'aprobó', 'soporte'
         ]
         palabras_negativas = [
-            'bear', 'crash', 'drop', 'fall', 'loss', 'low', 'down', 'negative', 'hack', 'steal', 'scam',
+            'bear', 'crash', 'drop', 'fall', 'loss', 'low', 'down', 'negative', 'exploit', 'steal', 'scam',
             'baja', 'bajista', 'cae', 'pérdida', 'perdida', 'mínimo', 'minimo', 'pánico', 'panico', 'multa', 'demanda'
         ]
         

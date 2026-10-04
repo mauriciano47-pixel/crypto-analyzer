@@ -219,7 +219,7 @@ def es_evening_star(v1: pd.Series, v2: pd.Series, v3: pd.Series) -> tuple[bool, 
 
 def detectar_patrones(df: pd.DataFrame) -> list[dict]:
     """
-    Recorre todo el DataFrame y devuelve una lista de patrones detectados.
+    Recorre el DataFrame completo y devuelve una lista de patrones detectados.
 
     Cada elemento: {'indice': int, 'timestamp': ..., 'patron': str, 'confianza': float}
 

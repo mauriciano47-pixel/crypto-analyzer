@@ -917,7 +917,7 @@ export default function TradingChart({
  
           <button 
             onClick={handleReset} 
-            title="Ajustar Todo (Fit Content)"
+            title="Ajustar Contenido (Fit Content)"
             style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <Maximize2 size={18} />

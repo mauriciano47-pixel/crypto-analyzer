@@ -22,8 +22,8 @@ export default function AuthScreen({ onAuthSuccess, theme = 'dark', onToggleThem
       }
       link.type = 'image/svg+xml';
       link.href = svgIconData;
-    } catch (e) {
-      console.warn('Error inyectando favicon dinámico en AuthScreen:', e);
+    } catch {
+      // Fallback silencioso para favicon en AuthScreen
     }
   }, []);
 

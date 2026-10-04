@@ -184,7 +184,7 @@ export class QuantAgentEngine {
   }
 
   /**
-   * Ejecuta una simulación completa Walk-Forward sobre todo el histórico de velas
+   * Ejecuta una simulación completa Walk-Forward sobre el histórico íntegro de velas
    */
   static runHistoricalAudit(candles, symbol = 'BTC/USDT', config = {}, microstructure = null, orderFlow = null, mtf = null) {
     if (!candles || candles.length < 30) {

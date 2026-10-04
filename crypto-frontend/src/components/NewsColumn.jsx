@@ -55,7 +55,7 @@ export default function NewsColumn({
     }
   };
 
-  const [filterSentiment, setFilterSentiment] = useState('todos'); // 'todos' | 'alcista' | 'bajista' | 'macro'
+  const [filterSentiment, setFilterSentiment] = useState('all'); // 'all' | 'alcista' | 'bajista' | 'macro'
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syntheticTrader, setSyntheticTrader] = useState(() => syntheticTraderService.getTrader());
@@ -423,7 +423,7 @@ export default function NewsColumn({
             {/* Filtros Rápidos */}
             <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', paddingBottom: '2px' }}>
               {[
-                { id: 'todos', label: 'Todo' },
+                { id: 'all', label: 'General 🌐' },
                 { id: 'alcista', label: 'Alcistas 🟢' },
                 { id: 'bajista', label: 'Bajistas 🔴' },
                 { id: 'macro', label: 'Macro 🌐' }

@@ -136,17 +136,27 @@ REST_FRAMEWORK = {
 }
 
 
-# --- CORS ---
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOWED_ORIGINS = [
-        origin.strip()
-        for origin in os.environ.get(
-            'CORS_ALLOWED_ORIGINS',
-            'https://crypto-frontend-weld.vercel.app,https://cryptopat.vercel.app,https://cpat.vercel.app,https://mauriciano47-pixel.github.io'
-        ).split(',')
-    ]
+# --- CORS Configuración Blindada (Zero-Trust) ---
+CORS_ALLOW_ALL_ORIGINS = False
+
+_DEFAULT_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'https://crypto-frontend-weld.vercel.app',
+    'https://cryptopat.vercel.app',
+    'https://cpat.vercel.app',
+    'https://mauriciano47-pixel.github.io',
+]
+_env_origins = [
+    origin.strip()
+    for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(_DEFAULT_ALLOWED_ORIGINS + _env_origins))
 
 try:
     from corsheaders.defaults import default_headers
