@@ -5,8 +5,8 @@
  * evalúa la efectividad de las señales y genera retroalimentación continua para Crypto Pattern Analyzer.
  */
 
-import { QuantAgentEngine } from './quantAgentEngine';
-import { calculateRSI, calculateEMA, calculateBollingerBands } from './indicators';
+import { QuantAgentEngine } from './quantAgentEngine.js';
+import { calculateRSI, calculateEMA, calculateBollingerBands } from './indicators.js';
 
 const STORAGE_DAILY_TRADER_KEY = 'crypto_analyzer_daily_trader';
 

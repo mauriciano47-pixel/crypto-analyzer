@@ -11,7 +11,7 @@ import {
   calculateRSI,
   calculateEMA,
   calculateBollingerBands
-} from './indicators';
+} from './indicators.js';
 
 const STORAGE_AGENT_AUDIT_KEY = 'crypto_analyzer_agent_audit';
 

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, CandlestickSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, ChevronsRight, ArrowUpRight, ArrowDownRight, Crosshair } from 'lucide-react';
-import { calculateEMA, calculateBollingerBands, calculateFibonacciLevels, calculatePivotPoints } from '../services/indicators';
-import TechnicalToolbar from './TechnicalToolbar';
+import { calculateEMA, calculateBollingerBands } from '../services/indicators';
 import RiskCalculatorModal from './RiskCalculatorModal';
 import MtfRadarBar from './MtfRadarBar';
+import ChartHeader from './chart/ChartHeader';
+import TradeLevelsBanner from './chart/TradeLevelsBanner';
+import { buildPatternMarkers, renderFibonacciLines, renderPivotLines } from './chart/chartOverlayUtils';
+
 export default function TradingChart({ 
   data, 
   patterns, 
@@ -35,7 +37,8 @@ export default function TradingChart({
   const dataRef = useRef(data);
   const [priceFlash, setPriceFlash] = useState(null);
   const prevPriceRef = useRef(currentPrice);
-  // Nuevos estados y referencias para indicadores técnicos
+
+  // Estados y referencias para indicadores técnicos
   const [showEMA20, setShowEMA20] = useState(false);
   const [showBollinger, setShowBollinger] = useState(false);
   const [showFibonacci, setShowFibonacci] = useState(false);
@@ -44,9 +47,11 @@ export default function TradingChart({
   const [hasActiveTradeLines, setHasActiveTradeLines] = useState(false);
   const [activeTradeInfo, setActiveTradeInfo] = useState(null);
   const externalTradeLevelsRef = useRef(externalTradeLevels);
+
   useEffect(() => {
     externalTradeLevelsRef.current = externalTradeLevels;
   }, [externalTradeLevels]);
+
   const ema20SeriesRef = useRef();
   const bollUpperSeriesRef = useRef();
   const bollLowerSeriesRef = useRef();
@@ -54,6 +59,7 @@ export default function TradingChart({
   const pivotLinesRef = useRef([]);
   const tradeLinesRef = useRef([]);
   const themeRef = useRef(theme);
+
   // Efecto de parpadeo de precio en tiempo real
   useEffect(() => {
     if (currentPrice !== null && prevPriceRef.current !== null && currentPrice !== prevPriceRef.current) {
@@ -118,34 +124,38 @@ export default function TradingChart({
     chartRef.current.timeScale().scrollToPosition(0, true);
   };
 
-  // Handlers para trazar y limpiar niveles de trade (modal de riesgo o trader simulado)
   const handleClearTradeLevels = useCallback(() => {
-    tradeLinesRef.current.forEach(line => {
-      try {
-        candlestickSeriesRef.current?.removePriceLine(line);
-      } catch {
-        // Ignorar si ya fue removido
-      }
-    });
-    tradeLinesRef.current = [];
+    if (candlestickSeriesRef.current && tradeLinesRef.current.length > 0) {
+      tradeLinesRef.current.forEach(line => {
+        try {
+          candlestickSeriesRef.current.removePriceLine(line);
+        } catch {
+          // Línea ya removida
+        }
+      });
+      tradeLinesRef.current = [];
+    }
     setHasActiveTradeLines(false);
     setActiveTradeInfo(null);
   }, []);
 
   const handlePlotTradeLevels = useCallback((levels) => {
-    if (!candlestickSeriesRef.current || !levels) return;
+    if (!levels || !candlestickSeriesRef.current) return;
     handleClearTradeLevels();
+
     const { entry, stopLoss, takeProfit, isLong, label } = levels;
     const entryLine = candlestickSeriesRef.current.createPriceLine({
       price: entry,
-      color: isLong ? '#10B981' : '#EF4444',
+      color: '#3B82F6',
       lineWidth: 2,
-      title: label ? `${label} Entrada` : 'Entrada',
+      lineStyle: 0,
+      title: label ? `${label} ENTRADA` : 'Entrada Trade',
     });
     const slLine = candlestickSeriesRef.current.createPriceLine({
       price: stopLoss,
       color: '#EF4444',
       lineWidth: 1,
+      lineStyle: 1,
       title: label ? `${label} SL` : 'Stop Loss',
     });
     const tpLine = candlestickSeriesRef.current.createPriceLine({
@@ -168,12 +178,12 @@ export default function TradingChart({
       try {
         chartRef.current.timeScale().scrollToPosition(0, true);
       } catch {
-        // Ignorar si aún está sincronizando
+        // Ignorar si aún sincronizando
       }
     }
   }, [handleClearTradeLevels]);
 
-  // Inicializar el gráfico y las series una sola vez por activo/dataset
+  // Inicializar el gráfico y las series
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -244,7 +254,7 @@ export default function TradingChart({
 
     chartRef.current = chart;
 
-    // Serie de velas japonesas
+    // Series
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#089981',
       downColor: '#f23645',
@@ -257,7 +267,6 @@ export default function TradingChart({
     });
     candlestickSeriesRef.current = candlestickSeries;
 
-    // Serie de SMA 20
     const sma20Series = chart.addSeries(LineSeries, {
       color: '#2962FF',
       lineWidth: 2,
@@ -265,35 +274,34 @@ export default function TradingChart({
     });
     sma20SeriesRef.current = sma20Series;
 
-    // Serie de SMA 50
     const sma50Series = chart.addSeries(LineSeries, {
       color: '#FF9800',
       lineWidth: 2,
       title: 'SMA 50',
     });
     sma50SeriesRef.current = sma50Series;
-    // Serie de EMA 20
+
     const ema20Series = chart.addSeries(LineSeries, {
-      color: '#1E3A8A', // azul oscuro
+      color: '#1E3A8A',
       lineWidth: 2,
       title: 'EMA 20',
     });
     ema20SeriesRef.current = ema20Series;
-    // Series para Bandas de Bollinger (upper y lower)
+
     const bollUpperSeries = chart.addSeries(LineSeries, {
-      color: '#F97316', // naranja
+      color: '#F97316',
       lineWidth: 1,
       title: 'Boll Upper',
     });
     const bollLowerSeries = chart.addSeries(LineSeries, {
-      color: '#F97316', // naranja
+      color: '#F97316',
       lineWidth: 1,
       title: 'Boll Lower',
     });
     bollUpperSeriesRef.current = bollUpperSeries;
     bollLowerSeriesRef.current = bollLowerSeries;
 
-    // Gráfico de RSI
+    // Gráfico RSI
     const rsiChart = createChart(rsiContainerRef.current, {
       width: rsiContainerRef.current.clientWidth,
       height: 110,
@@ -309,86 +317,48 @@ export default function TradingChart({
       },
       timeScale: {
         borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
-        visible: false,
+        timeVisible: true,
+        secondsVisible: true,
       },
       rightPriceScale: {
         borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+        scaleMargins: { top: 0.1, bottom: 0.1 },
       },
     });
     rsiChartRef.current = rsiChart;
 
     const rsiSeries = rsiChart.addSeries(LineSeries, {
       color: '#8B5CF6',
-      lineWidth: 1.5,
-      title: 'RSI (14)',
+      lineWidth: 2,
+      title: 'RSI 14',
     });
     rsiSeriesRef.current = rsiSeries;
 
-    // Líneas de sobrecompra (70) y sobreventa (30)
-    rsiSeries.createPriceLine({
-      price: 70,
-      color: 'rgba(239, 68, 68, 0.5)',
-      lineWidth: 1,
-      lineStyle: 3,
-      axisLabelVisible: true,
-      title: '70 SOBRECOMPRA',
-    });
-    rsiSeries.createPriceLine({
-      price: 30,
-      color: 'rgba(16, 185, 129, 0.5)',
-      lineWidth: 1,
-      lineStyle: 3,
-      axisLabelVisible: true,
-      title: '30 SOBREVENTA',
-    });
+    rsiSeries.createPriceLine({ price: 70, color: '#EF4444', lineWidth: 1, lineStyle: 2, title: '70' });
+    rsiSeries.createPriceLine({ price: 30, color: '#10B981', lineWidth: 1, lineStyle: 2, title: '30' });
 
-    // Sincronizar escalas de tiempo
-    let isSyncing = false;
-    const timeScalePrincipal = chart.timeScale();
-    const timeScaleRsi = rsiChart.timeScale();
-
-    timeScalePrincipal.subscribeVisibleLogicalRangeChange((range) => {
-      if (isSyncing) return;
-      isSyncing = true;
-      timeScaleRsi.setVisibleLogicalRange(range);
-      isSyncing = false;
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (range) rsiChart.timeScale().setVisibleLogicalRange(range);
     });
-
-    timeScaleRsi.subscribeVisibleLogicalRangeChange((range) => {
-      if (isSyncing) return;
-      isSyncing = true;
-      timeScalePrincipal.setVisibleLogicalRange(range);
-      isSyncing = false;
+    rsiChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (range) chart.timeScale().setVisibleLogicalRange(range);
     });
-
-    isFirstRenderRef.current = true;
 
     return () => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
       rsiChart.remove();
       chartRef.current = null;
-      candlestickSeriesRef.current = null;
-      sma20SeriesRef.current = null;
-      sma50SeriesRef.current = null;
-      ema20SeriesRef.current = null;
-      bollUpperSeriesRef.current = null;
-      bollLowerSeriesRef.current = null;
-      fibLinesRef.current = [];
-      pivotLinesRef.current = [];
-      tradeLinesRef.current = [];
       rsiChartRef.current = null;
-      rsiSeriesRef.current = null;
+      isFirstRenderRef.current = true;
     };
-  }, [selectedDataset?.id, liveSymbol]);
+  }, [liveSymbol]);
 
-  // Sincronización dinámica de tema con Lightweight Charts
+  // Actualizar tema
   useEffect(() => {
     themeRef.current = theme;
-    if (!chartRef.current || !rsiChartRef.current) return;
     const isLight = theme === 'light';
-
-    chartRef.current.applyOptions({
+    const chartOptions = {
       layout: {
         background: { type: 'solid', color: isLight ? '#FFFFFF' : '#0B0E14' },
         textColor: isLight ? '#475569' : '#94A3B8',
@@ -396,56 +366,22 @@ export default function TradingChart({
       grid: {
         vertLines: { color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.015)' },
         horzLines: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)' },
-      },
-      crosshair: {
-        vertLine: {
-          color: isLight ? 'rgba(100, 116, 139, 0.4)' : 'rgba(148, 163, 184, 0.3)',
-          labelBackgroundColor: isLight ? '#E2E8F0' : '#1E293B',
-        },
-        horzLine: {
-          color: isLight ? 'rgba(100, 116, 139, 0.4)' : 'rgba(148, 163, 184, 0.3)',
-          labelBackgroundColor: isLight ? '#E2E8F0' : '#1E293B',
-        },
-      },
-      timeScale: {
-        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
-      },
-      rightPriceScale: {
-        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
       },
       watermark: {
         color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.03)',
-      },
-    });
-
-    rsiChartRef.current.applyOptions({
-      layout: {
-        background: { type: 'solid', color: isLight ? '#FFFFFF' : '#0B0E14' },
-        textColor: isLight ? '#475569' : '#94A3B8',
-      },
-      grid: {
-        vertLines: { color: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.015)' },
-        horzLines: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)' },
-      },
-      timeScale: {
-        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
-      },
-      rightPriceScale: {
-        borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)',
-      },
-    });
+      }
+    };
+    chartRef.current?.applyOptions(chartOptions);
+    rsiChartRef.current?.applyOptions(chartOptions);
   }, [theme]);
 
+  // Sincronizar velas históricas
   useEffect(() => {
     dataRef.current = data;
-  }, [data]);
-
-  // Actualización masiva de datos iniciales
-  useEffect(() => {
-    if (!data || !candlestickSeriesRef.current) return;
+    if (!data || data.length === 0 || !candlestickSeriesRef.current) return;
 
     const formattedData = data.map(d => ({
-      time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000), 
+      time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000),
       open: parseFloat(d.open),
       high: parseFloat(d.high),
       low: parseFloat(d.low),
@@ -460,33 +396,27 @@ export default function TradingChart({
         uniqueFormattedData.push(item);
       }
     }
+    candlestickSeriesRef.current.setData(uniqueFormattedData);
 
-    if (uniqueFormattedData.length > 0) {
-      candlestickSeriesRef.current.setData(uniqueFormattedData);
-      if (externalTradeLevelsRef.current) {
-        handlePlotTradeLevels(externalTradeLevelsRef.current);
-      }
-    }
-
-    // Sincronizar SMA 20
+    // SMA 20
     if (sma20SeriesRef.current) {
-      const rawSmaData = data.filter(d => d.sma_20 !== null && d.sma_20 !== undefined).map(d => ({
+      const rawSma20Data = data.filter(d => d.sma_20 !== null && d.sma_20 !== undefined).map(d => ({
         time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000),
         value: parseFloat(d.sma_20)
       })).sort((a, b) => a.time - b.time);
 
-      const uniqueSmaData = [];
-      const seenSmaTimes = new Set();
-      for (const item of rawSmaData) {
-        if (!seenSmaTimes.has(item.time)) {
-          seenSmaTimes.add(item.time);
-          uniqueSmaData.push(item);
+      const uniqueSma20Data = [];
+      const seenSma20Times = new Set();
+      for (const item of rawSma20Data) {
+        if (!seenSma20Times.has(item.time)) {
+          seenSma20Times.add(item.time);
+          uniqueSma20Data.push(item);
         }
       }
-      sma20SeriesRef.current.setData(uniqueSmaData);
+      sma20SeriesRef.current.setData(uniqueSma20Data);
     }
 
-    // Sincronizar SMA 50
+    // SMA 50
     if (sma50SeriesRef.current) {
       const rawSma50Data = data.filter(d => d.sma_50 !== null && d.sma_50 !== undefined).map(d => ({
         time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000),
@@ -497,14 +427,14 @@ export default function TradingChart({
       const seenSma50Times = new Set();
       for (const item of rawSma50Data) {
         if (!seenSma50Times.has(item.time)) {
-          seenSma50Times.add(item.time);
+          seenSma20Times.add(item.time);
           uniqueSma50Data.push(item);
         }
       }
       sma50SeriesRef.current.setData(uniqueSma50Data);
     }
 
-    // Sincronizar RSI 14
+    // RSI 14
     if (rsiSeriesRef.current) {
       const rawRsiData = data.filter(d => d.rsi_14 !== null && d.rsi_14 !== undefined).map(d => ({
         time: typeof d.time === 'number' ? d.time : Math.floor(new Date(d.fecha).getTime() / 1000),
@@ -526,9 +456,9 @@ export default function TradingChart({
       chartRef.current.timeScale().fitContent();
       isFirstRenderRef.current = false;
     }
-  }, [data, handlePlotTradeLevels]);
+  }, [data]);
 
-  // Actualización fluida en tiempo real (Tick a Tick vía WebSocket)
+  // Actualización en tiempo real vía WebSocket
   useEffect(() => {
     if (!liveTick || !candlestickSeriesRef.current) return;
 
@@ -568,12 +498,10 @@ export default function TradingChart({
     }
   }, [liveTick]);
 
-  // Actualizar marcadores de patrones
-
-  // Efecto para actualizar EMA 20 cuando está activo
+  // Efecto EMA 20
   useEffect(() => {
     if (!ema20SeriesRef.current) return;
-    if (showEMA20) {
+    if (showEMA20 && data && data.length > 0) {
       const closes = data.map(d => parseFloat(d.close));
       const emaValues = calculateEMA(closes, 20);
       const emaData = emaValues.map((v, i) => ({
@@ -587,10 +515,10 @@ export default function TradingChart({
     }
   }, [showEMA20, data]);
 
-  // Efecto para actualizar Bandas de Bollinger cuando está activo
+  // Efecto Bandas de Bollinger
   useEffect(() => {
     if (!bollUpperSeriesRef.current || !bollLowerSeriesRef.current) return;
-    if (showBollinger) {
+    if (showBollinger && data && data.length > 0) {
       const closes = data.map(d => parseFloat(d.close));
       const { upper, lower } = calculateBollingerBands(closes);
       const upperData = upper.map((v, i) => ({
@@ -611,112 +539,33 @@ export default function TradingChart({
     }
   }, [showBollinger, data]);
 
-  // Efecto para dibujar niveles de Fibonacci
+  // Efecto Niveles de Fibonacci
   useEffect(() => {
-    // Limpiar líneas previas
     fibLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
     fibLinesRef.current = [];
-    if (!showFibonacci) return;
-    const highs = data.map(d => parseFloat(d.high));
-    const lows = data.map(d => parseFloat(d.low));
-    const high = Math.max(...highs);
-    const low = Math.min(...lows);
-    const levels = calculateFibonacciLevels(high, low);
-    levels.forEach(lvl => {
-      const line = candlestickSeriesRef.current.createPriceLine({
-        price: lvl.price,
-        color: lvl.color,
-        lineWidth: 1,
-        title: lvl.label,
-      });
-      fibLinesRef.current.push(line);
-    });
+    if (!showFibonacci || !candlestickSeriesRef.current) return;
+    fibLinesRef.current = renderFibonacciLines(candlestickSeriesRef.current, data);
   }, [showFibonacci, data]);
 
-  // Efecto para dibujar puntos de pivote
+  // Efecto Puntos Pivot
   useEffect(() => {
     pivotLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
     pivotLinesRef.current = [];
-    if (!showPivot) return;
-    const highs = data.map(d => parseFloat(d.high));
-    const lows = data.map(d => parseFloat(d.low));
-    const closes = data.map(d => parseFloat(d.close));
-    const high = Math.max(...highs);
-    const low = Math.min(...lows);
-    const close = closes[closes.length - 1];
-    const { pivot, r1, s1, r2, s2 } = calculatePivotPoints(high, low, close);
-    const points = [
-      { price: pivot, label: 'P', color: '#FFC107' },
-      { price: r1, label: 'R1', color: '#10B981' },
-      { price: s1, label: 'S1', color: '#EF4444' },
-      { price: r2, label: 'R2', color: '#10B981' },
-      { price: s2, label: 'S2', color: '#EF4444' },
-    ];
-    points.forEach(p => {
-      const line = candlestickSeriesRef.current.createPriceLine({
-        price: p.price,
-        color: p.color,
-        lineWidth: 1,
-        title: p.label,
-      });
-      pivotLinesRef.current.push(line);
-    });
+    if (!showPivot || !candlestickSeriesRef.current) return;
+    pivotLinesRef.current = renderPivotLines(candlestickSeriesRef.current, data);
   }, [showPivot, data]);
 
-
-
-  // Escuchar niveles externos (ej. desde el trader diario simulado o agente cuántico)
+  // Escuchar niveles externos (trader simulado o agente cuántico)
   useEffect(() => {
     if (externalTradeLevels && candlestickSeriesRef.current) {
       handlePlotTradeLevels(externalTradeLevels);
     }
   }, [externalTradeLevels, handlePlotTradeLevels]);
+
+  // Marcadores de Patrones
   useEffect(() => {
     if (!candlestickSeriesRef.current) return;
-
-    if (!patterns || patterns.length === 0) {
-      createSeriesMarkers(candlestickSeriesRef.current, []);
-      return;
-    }
-
-    const markers = patterns.map(p => {
-      const isBullish = p.patron && (
-        p.patron.toLowerCase().includes('bullish') || 
-        p.patron.toLowerCase().includes('morning') || 
-        p.patron.toLowerCase().includes('hammer')
-      );
-      
-      const isFocused = focusedTime === p.fecha;
-      const markerTime = typeof p.time === 'number' ? p.time : Math.floor(new Date(p.fecha).getTime() / 1000);
-      
-      return {
-        time: markerTime,
-        position: isBullish ? 'belowBar' : 'aboveBar',
-        color: isBullish 
-          ? (isFocused ? '#10B981' : 'rgba(16, 185, 129, 0.6)')
-          : (isFocused ? '#EF4444' : 'rgba(239, 68, 68, 0.6)'),
-        shape: isBullish ? 'arrowUp' : 'arrowDown',
-        text: isFocused ? p.patron : '',
-        size: isFocused ? 2 : 1,
-      };
-    });
-
-    markers.sort((a, b) => a.time - b.time);
-
-    const uniqueMarkers = [];
-    const seenTimes = new Set();
-    for (const marker of markers) {
-      if (!seenTimes.has(marker.time)) {
-        seenTimes.add(marker.time);
-        uniqueMarkers.push(marker);
-      } else if (marker.text !== '') {
-        const idx = uniqueMarkers.findIndex(m => m.time === marker.time);
-        if (idx !== -1) {
-          uniqueMarkers[idx] = marker;
-        }
-      }
-    }
-
+    const uniqueMarkers = buildPatternMarkers(patterns, focusedTime);
     createSeriesMarkers(candlestickSeriesRef.current, uniqueMarkers);
   }, [data, patterns, focusedTime]);
 
@@ -807,147 +656,32 @@ export default function TradingChart({
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '670px', padding: '1.25rem' }}>
-      
-      {/* Header del Gráfico en Tiempo Real */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-        
-        {/* Ticker y Precio en Vivo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-                {liveSymbol}
-              </h2>
-              {isLiveStreaming && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '12px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block', boxShadow: '0 0 6px #10B981', animation: 'pulse 1.5s infinite' }} />
-                  <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#10B981', letterSpacing: '0.05em' }}>EN VIVO 1s</span>
-                </div>
-              )}
-            </div>
-            
-            {/* Selector de temporalidades rápidas */}
-            {onTimeframeChange && (
-              <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
-                {['1m', '5m', '15m', '1h', '1d'].map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => onTimeframeChange(tf)}
-                    style={{
-                      padding: '2px 8px',
-                      fontSize: '0.7rem',
-                      fontWeight: '700',
-                      borderRadius: '4px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: liveTimeframe === tf ? 'var(--neon-green)' : 'var(--bg-elevated)',
-                      color: liveTimeframe === tf ? '#000000' : 'var(--text-secondary)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {tf.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <TechnicalToolbar
-            showEMA20={showEMA20}
-            setShowEMA20={setShowEMA20}
-            showBollinger={showBollinger}
-            setShowBollinger={setShowBollinger}
-            showFibonacci={showFibonacci}
-            setShowFibonacci={setShowFibonacci}
-            showPivot={showPivot}
-            setShowPivot={setShowPivot}
-            openRiskModal={() => setRiskModalOpen(true)}
-            theme={theme}
-          />
-
-          {/* Badge de Precio en Tiempo Real con Flash Reactivo */}
-          <div 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'baseline', 
-              gap: '0.6rem',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '8px',
-              backgroundColor: priceFlash === 'bullish' 
-                ? 'rgba(16, 185, 129, 0.2)' 
-                : priceFlash === 'bearish' 
-                  ? 'rgba(239, 68, 68, 0.2)' 
-                  : 'var(--bg-elevated)',
-              border: `1px solid ${
-                priceFlash === 'bullish' 
-                  ? 'rgba(16, 185, 129, 0.5)' 
-                  : priceFlash === 'bearish' 
-                    ? 'rgba(239, 68, 68, 0.5)' 
-                    : 'var(--border-color)'
-              }`,
-              transition: 'background-color 0.2s, border-color 0.2s'
-            }}
-          >
-            <span style={{ fontSize: '1.5rem', fontWeight: '800', fontFamily: 'monospace', color: priceFlash === 'bullish' ? '#10B981' : priceFlash === 'bearish' ? '#EF4444' : 'var(--text-primary)' }}>
-              ${displayPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-            </span>
-            <span style={{ fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', color: isPositiveChange ? '#10B981' : '#EF4444' }}>
-              {isPositiveChange ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-              {isPositiveChange ? '+' : ''}{priceChange24h.toFixed(2)}%
-            </span>
-          </div>
-        </div>
-        
-        {/* Barra de Controles de Zoom y Desplazamiento */}
-        <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-elevated)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-          <button 
-            onClick={handleScrollLeft} 
-            title="Desplazarse al Pasado"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ChevronLeft size={18} />
-          </button>
-          
-          <button 
-            onClick={handleZoomOut} 
-            title="Alejar (Zoom Out)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ZoomOut size={18} />
-          </button>
- 
-          <button 
-            onClick={handleReset} 
-            title="Ajustar Contenido (Fit Content)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Maximize2 size={18} />
-          </button>
- 
-          <button 
-            onClick={handleZoomIn} 
-            title="Acercar (Zoom In)"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ZoomIn size={18} />
-          </button>
- 
-          <button 
-            onClick={handleScrollRight} 
-            title="Desplazarse al Futuro"
-            style={{ padding: '6px', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ChevronRight size={18} />
-          </button>
- 
-          <button 
-            onClick={handleScrollToRecent} 
-            title="Ir a la Vela Actual (En Vivo)"
-            style={{ padding: '6px', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', color: '#3B82F6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ChevronsRight size={18} />
-          </button>
-        </div>
-      </div>
+      <ChartHeader
+        liveSymbol={liveSymbol}
+        isLiveStreaming={isLiveStreaming}
+        onTimeframeChange={onTimeframeChange}
+        liveTimeframe={liveTimeframe}
+        showEMA20={showEMA20}
+        setShowEMA20={setShowEMA20}
+        showBollinger={showBollinger}
+        setShowBollinger={setShowBollinger}
+        showFibonacci={showFibonacci}
+        setShowFibonacci={setShowFibonacci}
+        showPivot={showPivot}
+        setShowPivot={setShowPivot}
+        openRiskModal={() => setRiskModalOpen(true)}
+        theme={theme}
+        priceFlash={priceFlash}
+        displayPrice={displayPrice}
+        isPositiveChange={isPositiveChange}
+        priceChange24h={priceChange24h}
+        handleScrollLeft={handleScrollLeft}
+        handleZoomOut={handleZoomOut}
+        handleReset={handleReset}
+        handleZoomIn={handleZoomIn}
+        handleScrollRight={handleScrollRight}
+        handleScrollToRecent={handleScrollToRecent}
+      />
 
       {/* Barra HUD: Radar Multitemporal (MTF) & Order Flow (CVD) */}
       <MtfRadarBar 
@@ -959,51 +693,11 @@ export default function TradingChart({
       
       {/* Contenedores de Gráficos (Velas Principales + Oscilador RSI) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-        {/* Banner Informativo de Niveles de Trade Trazados */}
-        {hasActiveTradeLines && activeTradeInfo && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.45rem 0.85rem',
-            borderRadius: '8px',
-            backgroundColor: activeTradeInfo.isLong ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${activeTradeInfo.isLong ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
-            fontSize: '0.78rem',
-            color: '#F1F5F9'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <span style={{
-                fontWeight: '800',
-                color: activeTradeInfo.isLong ? '#10B981' : '#EF4444',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}>
-                <Crosshair size={14} /> {activeTradeInfo.label} ({activeTradeInfo.isLong ? 'LONG 🟢' : 'SHORT 🔴'})
-              </span>
-              <span>Entrada: <strong style={{ color: 'var(--text-primary)' }}>${activeTradeInfo.entry.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
-              <span>SL: <strong style={{ color: '#EF4444' }}>${activeTradeInfo.stopLoss.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
-              <span>TP: <strong style={{ color: '#10B981' }}>${activeTradeInfo.takeProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
-            </div>
-            <button
-              type="button"
-              onClick={handleClearTradeLevels}
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '6px',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                padding: '3px 8px',
-                fontSize: '0.72rem',
-                fontWeight: '600'
-              }}
-            >
-              Limpiar Niveles ✕
-            </button>
-          </div>
-        )}
+        <TradeLevelsBanner
+          hasActiveTradeLines={hasActiveTradeLines}
+          activeTradeInfo={activeTradeInfo}
+          onClearTradeLevels={handleClearTradeLevels}
+        />
 
         <div 
           ref={chartContainerRef} 
@@ -1020,7 +714,6 @@ export default function TradingChart({
         </div>
       </div>
 
-      {/* Modal de Cálculo Cuantitativo de Riesgo */}
       {riskModalOpen && (
         <RiskCalculatorModal
           isOpen={riskModalOpen}

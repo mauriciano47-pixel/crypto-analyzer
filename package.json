@@ -2,8 +2,10 @@
   "name": "crypto-pattern-analyzer",
   "version": "1.8.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "cd crypto-frontend && npm install && npm run build",
-    "vercel-build": "cd crypto-frontend && npm install && npm run build"
+    "vercel-build": "cd crypto-frontend && npm install && npm run build",
+    "test": "node --test tests/*.test.js"
   }
 }
