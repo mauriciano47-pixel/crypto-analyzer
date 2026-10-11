@@ -44,7 +44,7 @@ export default function FileUploader({ onUploadSuccess }) {
 
   return (
     <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 2rem', margin: '2rem auto', maxWidth: '600px', cursor: 'pointer', border: isDragActive ? '2px dashed var(--accent-bullish)' : '2px dashed var(--border-color)', borderRadius: '12px' }} {...getRootProps()}>
-      <input {...getInputProps()} />
+      <input id="file-dropzone-input" aria-label="Subir archivo CSV de velas" {...getInputProps()} />
       {uploading ? (
         <div style={{ animation: 'pulse 2s infinite' }}>
           <UploadCloud size={56} style={{ color: 'var(--neon-green)', margin: '0 auto 1rem' }} />

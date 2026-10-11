@@ -15,6 +15,131 @@ import {
 
 const STORAGE_AGENT_AUDIT_KEY = 'crypto_analyzer_agent_audit';
 
+function detectCandlePatterns(c1, c2, c3) {
+  const open = parseFloat(c3.open);
+  const high = parseFloat(c3.high);
+  const low = parseFloat(c3.low);
+  const close = parseFloat(c3.close);
+  const body = Math.abs(close - open);
+  const upperShadow = high - Math.max(open, close);
+  const lowerShadow = Math.min(open, close) - low;
+
+  const prevOpen = parseFloat(c2.open);
+  const prevClose = parseFloat(c2.close);
+
+  return {
+    isHammer: (lowerShadow >= 1.8 * body) && (upperShadow <= 0.25 * body) && (close >= open),
+    isBullishEngulfing: (prevClose < prevOpen) && (close > open) && (open <= prevClose) && (close >= prevOpen),
+    isMorningStar: (parseFloat(c1.close) < parseFloat(c1.open)) && 
+                   (Math.abs(prevClose - prevOpen) < Math.abs(parseFloat(c1.open) - parseFloat(c1.close)) * 0.5) && 
+                   (close > open) && (close > (parseFloat(c1.open) + parseFloat(c1.close)) / 2),
+    isShootingStar: (upperShadow >= 1.8 * body) && (lowerShadow <= 0.25 * body) && (close <= open),
+    isBearishEngulfing: (prevClose > prevOpen) && (close < open) && (open >= prevClose) && (close <= prevOpen)
+  };
+}
+
+function collectBullishFactors(patterns, low, close, bbLower, rsi, prevRsi, ema20) {
+  const reasons = [];
+  if (patterns.isHammer) reasons.push('Martillo Alcista (Rechazo en soporte)');
+  if (patterns.isBullishEngulfing) reasons.push('Envolvente Alcista (Presión compradora)');
+  if (patterns.isMorningStar) reasons.push('Estrella de la Mañana (Giro de 3 velas)');
+  if (low <= bbLower * 1.0025) reasons.push('Interacción con Banda Inferior Bollinger');
+  if (rsi <= 40) reasons.push(`RSI Wilder en zona de sobreventa/acumulación (${rsi.toFixed(1)})`);
+  else if (prevRsi < 36 && rsi > prevRsi) reasons.push(`Inflexión alcista de RSI (${prevRsi.toFixed(1)} → ${rsi.toFixed(1)})`);
+  if (close >= ema20 * 0.985 && close <= ema20 * 1.015) reasons.push('Soporte dinámico sobre EMA 20');
+  return reasons;
+}
+
+function collectBearishFactors(patterns, high, close, bbUpper, rsi, prevRsi, ema20, hasBullish) {
+  const reasons = [];
+  if (patterns.isShootingStar) reasons.push('Estrella Fugaz (Rechazo en resistencia)');
+  if (patterns.isBearishEngulfing) reasons.push('Envolvente Bajista (Presión vendedora)');
+  if (high >= bbUpper * 0.9975) reasons.push('Interacción con Banda Superior Bollinger');
+  if (rsi >= 62 && !hasBullish) reasons.push(`RSI Wilder en sobrecompra (${rsi.toFixed(1)})`);
+  else if (prevRsi > 65 && rsi < prevRsi) reasons.push(`Inflexión bajista de RSI (${prevRsi.toFixed(1)} → ${rsi.toFixed(1)})`);
+  if (close <= ema20 * 1.015 && close >= ema20 * 0.985) reasons.push('Resistencia dinámica bajo EMA 20');
+  return reasons;
+}
+
+function applyOrderFlowAndMicrostructure(bullishReasons, bearishReasons, microstructure, orderFlow) {
+  if (microstructure?.imbalance >= 0.15) {
+    bullishReasons.push(`Flujo L2: Desbalance comprador institucional (+${(microstructure.imbalance * 100).toFixed(0)}%)`);
+  } else if (microstructure?.imbalance <= -0.15) {
+    bearishReasons.push(`Flujo L2: Desbalance vendedor institucional (${(microstructure.imbalance * 100).toFixed(0)}%)`);
+  }
+
+  if (orderFlow?.absorptionStatus === 'BULLISH_ABSORPTION') {
+    bullishReasons.push('Absorción CVD: Muro pasivo institucional absorbiendo ventas a mercado 🟢');
+  } else if (orderFlow?.absorptionStatus === 'BEARISH_ABSORPTION') {
+    bearishReasons.push('Absorción CVD: Muro pasivo institucional absorbiendo compras a mercado 🔴');
+  }
+  if (orderFlow?.takerBuyRatio >= 62) {
+    bullishReasons.push(`Agresividad Taker: Dominio Comprador (${orderFlow.takerBuyRatio}%)`);
+  } else if (orderFlow?.takerSellRatio >= 62) {
+    bearishReasons.push(`Agresividad Taker: Dominio Vendedor (${orderFlow.takerSellRatio}%)`);
+  }
+}
+
+function buildLongTrade(index, c3, prevLow, bullishReasons, isCounterTrend, targetRatio, microstructure, rsi) {
+  const low = parseFloat(c3.low);
+  const close = parseFloat(c3.close);
+  if (isCounterTrend) bullishReasons.push('⚠️ Alerta Contratendencia: Stop Loss ceñido defensivo');
+  const technicalSl = Math.min(low, prevLow) * (isCounterTrend ? 0.9985 : 0.998);
+  const slDist = Math.max(close - technicalSl, close * 0.008);
+  let technicalTp = close + (slDist * targetRatio);
+
+  if (microstructure?.askWalls?.length) {
+    const blockingWall = microstructure.askWalls.find(w => w.price > close && w.price <= technicalTp);
+    if (blockingWall) {
+      technicalTp = Number((blockingWall.price * 0.998).toFixed(2));
+      bullishReasons.push(`TP optimizado antes de Muro Venta ($${blockingWall.price.toLocaleString()})`);
+    }
+  }
+
+  return {
+    type: 'LONG',
+    index,
+    entryPrice: close,
+    stopLoss: Number(technicalSl.toFixed(2)),
+    takeProfit: Number(technicalTp.toFixed(2)),
+    rrRatio: targetRatio,
+    reasons: bullishReasons,
+    candleTime: c3.time || c3.fecha,
+    rsi: Number(rsi.toFixed(1)),
+    bbBand: 'Banda Inferior'
+  };
+}
+
+function buildShortTrade(index, c3, prevHigh, bearishReasons, isCounterTrend, targetRatio, microstructure, rsi) {
+  const high = parseFloat(c3.high);
+  const close = parseFloat(c3.close);
+  if (isCounterTrend) bearishReasons.push('⚠️ Alerta Contratendencia: Stop Loss ceñido defensivo');
+  const technicalSl = Math.max(high, prevHigh) * (isCounterTrend ? 1.0015 : 1.002);
+  const slDist = Math.max(technicalSl - close, close * 0.008);
+  let technicalTp = close - (slDist * targetRatio);
+
+  if (microstructure?.bidWalls?.length) {
+    const blockingWall = microstructure.bidWalls.find(w => w.price < close && w.price >= technicalTp);
+    if (blockingWall) {
+      technicalTp = Number((blockingWall.price * 1.002).toFixed(2));
+      bearishReasons.push(`TP optimizado antes de Muro Compra ($${blockingWall.price.toLocaleString()})`);
+    }
+  }
+
+  return {
+    type: 'SHORT',
+    index,
+    entryPrice: close,
+    stopLoss: Number(technicalSl.toFixed(2)),
+    takeProfit: Number(technicalTp.toFixed(2)),
+    rrRatio: targetRatio,
+    reasons: bearishReasons,
+    candleTime: c3.time || c3.fecha,
+    rsi: Number(rsi.toFixed(1)),
+    bbBand: 'Banda Superior'
+  };
+}
+
 export class QuantAgentEngine {
   /**
    * Evalúa la confluencia técnica en una barra específica dentro de la serie histórica
@@ -26,81 +151,24 @@ export class QuantAgentEngine {
     const c2 = candles[index - 1];
     const c1 = index >= 2 ? candles[index - 2] : c2;
 
-    const open = parseFloat(c3.open);
     const high = parseFloat(c3.high);
     const low = parseFloat(c3.low);
     const close = parseFloat(c3.close);
-    const body = Math.abs(close - open);
-    const upperShadow = high - Math.max(open, close);
-    const lowerShadow = Math.min(open, close) - low;
-
-    const prevOpen = parseFloat(c2.open);
-    const prevClose = parseFloat(c2.close);
     const prevLow = parseFloat(c2.low);
     const prevHigh = parseFloat(c2.high);
 
     const rsi = rsiList[index] ?? 50;
     const prevRsi = rsiList[index - 1] ?? rsi;
     const ema20 = ema20List[index] ?? close;
-    const bb = {
-      upper: bbList.upper[index] ?? (close * 1.02),
-      middle: bbList.middle[index] ?? close,
-      lower: bbList.lower[index] ?? (close * 0.98)
-    };
+    const bbUpper = bbList.upper[index] ?? (close * 1.02);
+    const bbLower = bbList.lower[index] ?? (close * 0.98);
 
-    // 1. Detección de patrones de velas en barra
-    const isHammer = (lowerShadow >= 1.8 * body) && (upperShadow <= 0.25 * body) && (close >= open);
-    const isBullishEngulfing = (prevClose < prevOpen) && (close > open) && (open <= prevClose) && (close >= prevOpen);
-    const isMorningStar = (parseFloat(c1.close) < parseFloat(c1.open)) && 
-                          (Math.abs(prevClose - prevOpen) < Math.abs(parseFloat(c1.open) - parseFloat(c1.close)) * 0.5) && 
-                          (close > open) && (close > (parseFloat(c1.open) + parseFloat(c1.close)) / 2);
+    const patterns = detectCandlePatterns(c1, c2, c3);
+    const bullishReasons = collectBullishFactors(patterns, low, close, bbLower, rsi, prevRsi, ema20);
+    const bearishReasons = collectBearishFactors(patterns, high, close, bbUpper, rsi, prevRsi, ema20, bullishReasons.length > 0);
 
-    const isShootingStar = (upperShadow >= 1.8 * body) && (lowerShadow <= 0.25 * body) && (close <= open);
-    const isBearishEngulfing = (prevClose > prevOpen) && (close < open) && (open >= prevClose) && (close <= prevOpen);
+    applyOrderFlowAndMicrostructure(bullishReasons, bearishReasons, microstructure, orderFlow);
 
-    // 2. Factores de Confluencia Alcista (LONG)
-    const bullishReasons = [];
-    if (isHammer) bullishReasons.push('Martillo Alcista (Rechazo en soporte)');
-    if (isBullishEngulfing) bullishReasons.push('Envolvente Alcista (Presión compradora)');
-    if (isMorningStar) bullishReasons.push('Estrella de la Mañana (Giro de 3 velas)');
-    if (low <= bb.lower * 1.0025) bullishReasons.push('Interacción con Banda Inferior Bollinger');
-    if (rsi <= 40) bullishReasons.push(`RSI Wilder en zona de sobreventa/acumulación (${rsi.toFixed(1)})`);
-    else if (prevRsi < 36 && rsi > prevRsi) bullishReasons.push(`Inflexión alcista de RSI (${prevRsi.toFixed(1)} → ${rsi.toFixed(1)})`);
-    if (close >= ema20 * 0.985 && close <= ema20 * 1.015) bullishReasons.push('Soporte dinámico sobre EMA 20');
-
-    // 3. Factores de Confluencia Bajista (SHORT)
-    const bearishReasons = [];
-    if (isShootingStar) bearishReasons.push('Estrella Fugaz (Rechazo en resistencia)');
-    if (isBearishEngulfing) bearishReasons.push('Envolvente Bajista (Presión vendedora)');
-    if (high >= bb.upper * 0.9975) bearishReasons.push('Interacción con Banda Superior Bollinger');
-    if (rsi >= 62) bullishReasons.length === 0 && bearishReasons.push(`RSI Wilder en sobrecompra (${rsi.toFixed(1)})`);
-    else if (prevRsi > 65 && rsi < prevRsi) bearishReasons.push(`Inflexión bajista de RSI (${prevRsi.toFixed(1)} → ${rsi.toFixed(1)})`);
-    if (close <= ema20 * 1.015 && close >= ema20 * 0.985) bearishReasons.push('Resistencia dinámica bajo EMA 20');
-
-    // 4. Integración de Microestructura y Flujo de Órdenes L2
-    if (microstructure) {
-      if (microstructure.imbalance >= 0.15) {
-        bullishReasons.push(`Flujo L2: Desbalance comprador institucional (+${(microstructure.imbalance * 100).toFixed(0)}%)`);
-      } else if (microstructure.imbalance <= -0.15) {
-        bearishReasons.push(`Flujo L2: Desbalance vendedor institucional (${(microstructure.imbalance * 100).toFixed(0)}%)`);
-      }
-    }
-
-    // 5. Integración de Order Flow & CVD (Delta de Volumen Acumulado)
-    if (orderFlow) {
-      if (orderFlow.absorptionStatus === 'BULLISH_ABSORPTION') {
-        bullishReasons.push('Absorción CVD: Muro pasivo institucional absorbiendo ventas a mercado 🟢');
-      } else if (orderFlow.absorptionStatus === 'BEARISH_ABSORPTION') {
-        bearishReasons.push('Absorción CVD: Muro pasivo institucional absorbiendo compras a mercado 🔴');
-      }
-      if (orderFlow.takerBuyRatio >= 62) {
-        bullishReasons.push(`Agresividad Taker: Dominio Comprador (${orderFlow.takerBuyRatio}%)`);
-      } else if (orderFlow.takerSellRatio >= 62) {
-        bearishReasons.push(`Agresividad Taker: Dominio Vendedor (${orderFlow.takerSellRatio}%)`);
-      }
-    }
-
-    // 6. Integración del Radar Multitemporal (MTF - Elder Triple Screen)
     let isCounterTrend = false;
     if (mtf) {
       if (mtf.elderTripleScreen === 'ALIGNED_BULL') {
@@ -112,72 +180,17 @@ export class QuantAgentEngine {
       }
     }
 
-    // Mínimo 2 condiciones técnicas sólidas para evitar operaciones a ciegas
-    const patternPresentBull = isHammer || isBullishEngulfing || isMorningStar || (low <= bb.lower * 1.002) || (orderFlow?.absorptionStatus === 'BULLISH_ABSORPTION');
-    const patternPresentBear = isShootingStar || isBearishEngulfing || (high >= bb.upper * 0.998) || (orderFlow?.absorptionStatus === 'BEARISH_ABSORPTION');
+    const patternPresentBull = patterns.isHammer || patterns.isBullishEngulfing || patterns.isMorningStar || (low <= bbLower * 1.002) || (orderFlow?.absorptionStatus === 'BULLISH_ABSORPTION');
+    const patternPresentBear = patterns.isShootingStar || patterns.isBearishEngulfing || (high >= bbUpper * 0.998) || (orderFlow?.absorptionStatus === 'BEARISH_ABSORPTION');
 
     if (bullishReasons.length >= 2 && patternPresentBull) {
-      if (isCounterTrend) {
-        bullishReasons.push('⚠️ Alerta Contratendencia: Stop Loss ceñido defensivo');
-      }
-      const technicalSl = Math.min(low, prevLow) * (isCounterTrend ? 0.9985 : 0.998);
-      const slDist = Math.max(close - technicalSl, close * 0.008);
-      const targetRatio = isCounterTrend ? 2.0 : 2.25; // R:R calibrado
-      let technicalTp = close + (slDist * targetRatio);
-
-      // Filtro Anti-Muro Institucional L2
-      if (microstructure && microstructure.askWalls && microstructure.askWalls.length > 0) {
-        const blockingWall = microstructure.askWalls.find(w => w.price > close && w.price <= technicalTp);
-        if (blockingWall) {
-          technicalTp = Number((blockingWall.price * 0.998).toFixed(2));
-          bullishReasons.push(`TP optimizado antes de Muro Venta ($${blockingWall.price.toLocaleString()})`);
-        }
-      }
-
-      return {
-        type: 'LONG',
-        index,
-        entryPrice: close,
-        stopLoss: Number(technicalSl.toFixed(2)),
-        takeProfit: Number(technicalTp.toFixed(2)),
-        rrRatio: targetRatio,
-        reasons: bullishReasons,
-        candleTime: c3.time || c3.fecha,
-        rsi: Number(rsi.toFixed(1)),
-        bbBand: 'Banda Inferior'
-      };
+      const targetRatio = isCounterTrend ? 2.0 : 2.25;
+      return buildLongTrade(index, c3, prevLow, bullishReasons, isCounterTrend, targetRatio, microstructure, rsi);
     }
 
     if (bearishReasons.length >= 2 && patternPresentBear) {
-      if (isCounterTrend) {
-        bearishReasons.push('⚠️ Alerta Contratendencia: Stop Loss ceñido defensivo');
-      }
-      const technicalSl = Math.max(high, prevHigh) * (isCounterTrend ? 1.0015 : 1.002);
-      const slDist = Math.max(technicalSl - close, close * 0.008);
       const targetRatio = isCounterTrend ? 2.0 : 2.25;
-      let technicalTp = close - (slDist * targetRatio);
-
-      // Filtro Anti-Muro Institucional L2
-      if (microstructure && microstructure.bidWalls && microstructure.bidWalls.length > 0) {
-        const blockingWall = microstructure.bidWalls.find(w => w.price < close && w.price >= technicalTp);
-        if (blockingWall) {
-          technicalTp = Number((blockingWall.price * 1.002).toFixed(2));
-          bearishReasons.push(`TP optimizado antes de Muro Compra ($${blockingWall.price.toLocaleString()})`);
-        }
-      }
-
-      return {
-        type: 'SHORT',
-        index,
-        entryPrice: close,
-        stopLoss: Number(technicalSl.toFixed(2)),
-        takeProfit: Number(technicalTp.toFixed(2)),
-        rrRatio: targetRatio,
-        reasons: bearishReasons,
-        candleTime: c3.time || c3.fecha,
-        rsi: Number(rsi.toFixed(1)),
-        bbBand: 'Banda Superior'
-      };
+      return buildShortTrade(index, c3, prevHigh, bearishReasons, isCounterTrend, targetRatio, microstructure, rsi);
     }
 
     return null;

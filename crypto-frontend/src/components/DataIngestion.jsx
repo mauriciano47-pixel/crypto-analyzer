@@ -165,10 +165,13 @@ export default function DataIngestion({ onDatasetCreated }) {
 
           {mode === 'csv' ? (
             <div>
-              <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+              <label htmlFor="csv-file-input" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
                 Archivo CSV OHLCV (Columnas: date/time, open, high, low, close, volume)
               </label>
               <input 
+                id="csv-file-input"
+                name="csv-file"
+                aria-label="Archivo CSV OHLCV"
                 type="file" 
                 accept=".csv"
                 onChange={(e) => setFile(e.target.files[0])}
@@ -177,8 +180,11 @@ export default function DataIngestion({ onDatasetCreated }) {
             </div>
           ) : (
             <div>
-              <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Exchange</label>
+              <label htmlFor="exchange-select" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Exchange</label>
               <select 
+                id="exchange-select"
+                name="exchange"
+                aria-label="Seleccionar Exchange"
                 value={exchange} 
                 onChange={(e) => setExchange(e.target.value)}
                 className="input-field"
@@ -192,8 +198,11 @@ export default function DataIngestion({ onDatasetCreated }) {
 
           <div style={{ display: 'flex', gap: '1rem' }}>
             <div style={{ flex: 1 }}>
-              <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Par (Symbol)</label>
+              <label htmlFor="symbol-input" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Par (Symbol)</label>
               <input 
+                id="symbol-input"
+                name="symbol"
+                aria-label="Par de Criptomoneda"
                 type="text" 
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
@@ -203,8 +212,11 @@ export default function DataIngestion({ onDatasetCreated }) {
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Timeframe</label>
+              <label htmlFor="timeframe-select" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Timeframe</label>
               <select 
+                id="timeframe-select"
+                name="timeframe"
+                aria-label="Temporalidad de velas"
                 value={timeframe} 
                 onChange={(e) => setTimeframe(e.target.value)}
                 className="input-field"

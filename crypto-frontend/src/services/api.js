@@ -43,8 +43,8 @@ export const api = {
         const backendData = await res.json();
         return [...clientMemoryDatasets, ...(Array.isArray(backendData) ? backendData : [])];
       }
-    } catch (err) {
-      console.warn('[API Engine] Backend no disponible, usando datasets locales:', err.message);
+    } catch {
+      // Backend no disponible, fallback seguro a datasets en memoria del cliente
     }
     return [...clientMemoryDatasets];
   },
@@ -57,7 +57,6 @@ export const api = {
       clientMemoryDatasets.unshift(dataset);
       return dataset;
     } catch (clientErr) {
-      console.warn('[API Engine] Procesamiento CSV client-side:', clientErr.message);
       throw clientErr;
     }
   },
@@ -70,7 +69,6 @@ export const api = {
       clientMemoryDatasets.unshift(dataset);
       return dataset;
     } catch (err) {
-      console.warn('[API Engine] Error en fetchCCXT client-side:', err);
       throw err;
     }
   },
@@ -83,7 +81,6 @@ export const api = {
       clientMemoryDatasets.unshift(dataset);
       return dataset;
     } catch (err) {
-      console.warn('[API Engine] Error cargando ejemplo:', err);
       throw err;
     }
   },

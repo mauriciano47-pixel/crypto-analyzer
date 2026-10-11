@@ -493,8 +493,8 @@ export default function TradingChart({
           value: parseFloat(liveTick.sma_50)
         });
       }
-    } catch (e) {
-      console.warn('Error aplicando liveTick:', e);
+    } catch {
+      // Ignorar desincronización transitoria de tick en streaming
     }
   }, [liveTick]);
 
@@ -575,8 +575,8 @@ export default function TradingChart({
       priceLinesRef.current.forEach(line => {
         try {
           candlestickSeriesRef.current.removePriceLine(line);
-        } catch (err) {
-          console.warn('Error al remover línea de precio:', err);
+        } catch {
+          // Ignorar desincronización de línea de precio previa
         }
       });
       priceLinesRef.current = [];

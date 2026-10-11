@@ -33,11 +33,16 @@ export default function AuthScreen({ onAuthSuccess, theme = 'dark', onToggleThem
     setIsLoading(true);
 
     try {
+      const cleanUser = username.trim();
+      const cleanPass = password;
+      if (!cleanUser) {
+        throw new Error('El nombre de usuario no puede estar vacío.');
+      }
       let user;
       if (isRegistering) {
-        user = await authService.register(username, password);
+        user = await authService.register(cleanUser, cleanPass);
       } else {
-        user = await authService.login(username, password);
+        user = await authService.login(cleanUser, cleanPass);
       }
       onAuthSuccess(user);
     } catch (err) {
@@ -64,13 +69,16 @@ export default function AuthScreen({ onAuthSuccess, theme = 'dark', onToggleThem
         ? 'radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, rgba(241, 245, 249, 1) 70%)'
         : 'radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.08) 0%, rgba(11, 14, 20, 1) 70%)',
       padding: '1.5rem',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      overflowY: 'auto'
     }}>
       <div 
         className="card glass" 
         style={{
           maxWidth: '440px',
           width: '100%',
+          maxHeight: '92vh',
+          overflowY: 'auto',
           padding: '2.25rem 2rem',
           borderRadius: '16px',
           border: '1px solid var(--border-color)',
@@ -217,12 +225,15 @@ export default function AuthScreen({ onAuthSuccess, theme = 'dark', onToggleThem
               <User size={18} style={{ position: 'absolute', left: '12px', color: '#64748B' }} />
               <input
                 id="auth-username"
+                name="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="ej: mauricio_trader"
                 required
                 autoComplete="username"
+                autoCapitalize="none"
+                spellCheck="false"
                 className="input-field"
                 style={{ width: '100%', paddingLeft: '38px', fontSize: '0.9rem' }}
               />
@@ -241,6 +252,7 @@ export default function AuthScreen({ onAuthSuccess, theme = 'dark', onToggleThem
               <Lock size={18} style={{ position: 'absolute', left: '12px', color: '#64748B' }} />
               <input
                 id="auth-password"
+                name="password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

@@ -15,6 +15,9 @@ export default function NewsFeedTab({
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748B' }} />
         <input
+          id="news-search-input"
+          name="search"
+          aria-label="Buscar en noticias"
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
