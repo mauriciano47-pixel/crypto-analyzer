@@ -50,39 +50,27 @@ export const api = {
   },
   
   uploadCSV: async (file, assetSymbol, timeframe = '1d') => {
-    try {
-      const text = await file.text();
-      const candles = parseClientCSV(text);
-      const dataset = createDatasetObject(assetSymbol || 'CSV_CUSTOM', timeframe, candles);
-      clientMemoryDatasets.unshift(dataset);
-      return dataset;
-    } catch (clientErr) {
-      throw clientErr;
-    }
+    const text = await file.text();
+    const candles = parseClientCSV(text);
+    const dataset = createDatasetObject(assetSymbol || 'CSV_CUSTOM', timeframe, candles);
+    clientMemoryDatasets.unshift(dataset);
+    return dataset;
   },
 
   fetchCCXT: async (exchangeId, symbol, timeframe = '1d', limit = 100) => {
-    try {
-      // Intento primario con Binance API directa en cliente (alta velocidad, cero fallos)
-      const candles = await fetchBinanceKlines(symbol, timeframe, limit);
-      const dataset = createDatasetObject(symbol, timeframe, candles);
-      clientMemoryDatasets.unshift(dataset);
-      return dataset;
-    } catch (err) {
-      throw err;
-    }
+    // Intento primario con Binance API directa en cliente (alta velocidad, cero fallos)
+    const candles = await fetchBinanceKlines(symbol, timeframe, limit);
+    const dataset = createDatasetObject(symbol, timeframe, candles);
+    clientMemoryDatasets.unshift(dataset);
+    return dataset;
   },
 
   loadExample: async (symbol) => {
-    try {
-      const pair = `${symbol}/USDT`;
-      const candles = await fetchBinanceKlines(pair, '1d', 120);
-      const dataset = createDatasetObject(pair, '1d', candles);
-      clientMemoryDatasets.unshift(dataset);
-      return dataset;
-    } catch (err) {
-      throw err;
-    }
+    const pair = `${symbol}/USDT`;
+    const candles = await fetchBinanceKlines(pair, '1d', 120);
+    const dataset = createDatasetObject(pair, '1d', candles);
+    clientMemoryDatasets.unshift(dataset);
+    return dataset;
   },
 
   // Analysis

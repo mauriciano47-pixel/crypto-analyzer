@@ -11,7 +11,6 @@ export default function TradingChart({
   data, 
   patterns, 
   focusedTime, 
-  selectedDataset,
   liveTick = null,
   currentPrice = null,
   priceChange24h = 0,
@@ -427,7 +426,7 @@ export default function TradingChart({
       const seenSma50Times = new Set();
       for (const item of rawSma50Data) {
         if (!seenSma50Times.has(item.time)) {
-          seenSma20Times.add(item.time);
+          seenSma50Times.add(item.time);
           uniqueSma50Data.push(item);
         }
       }
