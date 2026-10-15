@@ -6,8 +6,12 @@ ccxt>=4.4.0
 django-cors-headers>=4.7.0
 python-dotenv>=1.0.1
 requests>=2.32.3
-anthropic>=0.34.0
+anthropic>=0.40.0
 dj-database-url>=2.3.0
+anyio>=4.8.0
+h11>=0.16.0
+httpcore>=1.0.7
+httpx>=0.28.1
 
 gunicorn>=22.0.0
 whitenoise>=6.8.2
